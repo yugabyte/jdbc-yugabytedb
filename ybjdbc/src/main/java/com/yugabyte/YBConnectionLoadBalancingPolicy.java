@@ -20,16 +20,14 @@ import com.datastax.driver.core.Statement;
 import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.pool.HikariPool;
-import jnr.ffi.Struct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import static com.zaxxer.hikari.pool.HikariPool.POOL_NORMAL;
-import static com.zaxxer.hikari.pool.HikariPool.POOL_SUSPENDED;
+import static com.zaxxer.hikari.pool.HikariPool.*;
 
 /**
  * Load-balancing policy for YugaByte SQL connection.
@@ -37,7 +35,7 @@ import static com.zaxxer.hikari.pool.HikariPool.POOL_SUSPENDED;
  // TODO The load-balacing/cluster-manager code should be refactored away to be API-agnostic.
  */
 public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
-  private static final Logger LOGGER = Logger.getLogger("com.yugabyte.ConnectionLoadBalancingPolicy");
+  private static final Logger LOGGER = LoggerFactory.getLogger(YBConnectionLoadBalancingPolicy.class);
 
   // Dummy keyspace needed to pass to the YCQL-specific functions.
   private static final String DUMMY_KEYSPACE = "system";
@@ -61,7 +59,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
       Host host = hosts.next();
       HikariPool pool = pools.get(host);
       if (pool != null && pool.poolState == POOL_NORMAL) {
-        if (pool.getTotalConnections() > 0) { // TODO.
+        if (pool.getTotalConnections() > 0) { // TODO -- is this needed?.
           return pool;
         }
       } else {
@@ -69,36 +67,35 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
       }
     }
 
-
     throw new IllegalStateException("Could not find any active connection pool. Are all nodes down?");
   }
 
   @Override
   public void onAdd(Host host) {
-    LOGGER.finer("On Add " + host.toString());
     super.onAdd(host);
-    renewPools();
+    // Host added but not yet up -- nothing to do.
+    if (host.isUp()) {
+      onHostUp(host);
+    }
   }
 
   @Override
   public void onDown(Host host) {
-    LOGGER.finer("On Down " + host.toString());
     super.onDown(host);
-    renewPools();
+    // TODO - check if suspending the pool is better here.
+    onHostDown(host);
   }
 
   @Override
   public void onRemove(Host host) {
-    LOGGER.finer("On Remove " + host.toString());
     super.onRemove(host);
-    renewPools();
+    onHostRemoved(host);
   }
 
   @Override
   public void onUp(Host host) {
-    LOGGER.finer("On Up " + host.toString());
     super.onUp(host);
-    renewPools();
+    onHostUp(host);
   }
 
   public void init(Cluster cluster) {
@@ -109,7 +106,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
 
   private void renewPools() {
     if (cluster == null) {
-      LOGGER.finer("Skipping renewing pools");
+      LOGGER.trace("Skipping renewing pools");
       // Not initialized yet, nothing to do.
       return;
     }
@@ -120,7 +117,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     Set<Host> unknownHosts = new HashSet<>();
     for (Host host : poolsHosts) {
       if (!allHosts.contains(host)) {
-        LOGGER.finer("UnknownHost: " + host.toString());
+        LOGGER.debug("UnknownHost: " + host.toString());
         unknownHosts.add(host);
       }
     }
@@ -131,19 +128,19 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     }
 
     // Create/resume/suspend pools for the known nodes as needed.
-    for (Host host : cluster.getMetadata().getAllHosts()) {
+    for (Host host : allHosts) {
       HikariPool pool = pools.get(host);
       if (host.isUp()) {
         if (pool != null && pool.poolState == POOL_NORMAL) {
           // If we have an existing, active pool we can just reuse it.
           continue;
         } else if (pool != null && pool.poolState == POOL_SUSPENDED) {
-          LOGGER.finer("Resuming pool for host: " + host.toString());
+          LOGGER.debug("Resuming pool for host: " + host.toString());
           // If pool is suspended (a down node just came back up) just resume it.
           pool.resumePool();
         } else {
           if (pool == null) {
-            LOGGER.finer("Initializing pool for host: " + host.toString());
+            LOGGER.debug("Initializing connection pool for host " + host.toString() + " (host up).");
             // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
             String hostName = host.getAddress().getHostName();
             Properties properties = (Properties) poolProperties.clone();
@@ -153,37 +150,89 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
             HikariPool newPool =  new HikariPool(config);
             HikariPool existing = pools.putIfAbsent(host, newPool);
             if (existing != null) {
-              LOGGER.warning("Already existing pool, shutting down new one");
+              LOGGER.warn("Already existing pool, shutting down new one");
               shutdownPool(newPool);
             }
           }
         }
       } else {
         if (pool != null && pool.poolState == POOL_NORMAL) {
-          LOGGER.finer("Suspending pool for host: " + host.toString());
-          pool.suspendPool();
+          LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host down).");
+          shutdownPool(pool);
         }
       }
     }
+    LOGGER.debug(poolsToString());
+  }
 
-    if (LOGGER.isLoggable(Level.FINER)) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("---- New Pools: -----\n");
-      for (Map.Entry<Host, HikariPool> entry : pools.entrySet()) {
-        sb.append(entry.getKey().toString()).append(" : ").append(entry.getValue().getTotalConnections()).append("\n");
+  private void onHostUp(Host host) {
+    HikariPool pool = pools.get(host);
+    if (pool != null && pool.poolState == POOL_NORMAL) {
+      // If we have an existing, active pool nothing to do.
+      return;
+    }
+
+    LOGGER.debug("Initializing connection pool for host " + host.toString() + " (host up).");
+
+    if (pool != null && pool.poolState == POOL_SUSPENDED) {
+      LOGGER.trace("Resuming pool for host: " + host.toString());
+      // If pool is suspended (a down node just came back up) just resume it.
+      pool.resumePool();
+    } else { // pool == null || pool.poolState == POOL_SHUTDOWN
+      LOGGER.trace("Initializing pool for host: " + host.toString());
+      // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
+      String hostName = host.getAddress().getHostName();
+      Properties properties = (Properties) poolProperties.clone();
+      properties.setProperty("dataSource.serverName", hostName);
+      HikariConfig config = new HikariConfig(properties);
+      config.validate();
+      HikariPool newPool = new HikariPool(config);
+      HikariPool existing = pools.putIfAbsent(host, newPool);
+      if (existing != null) {
+        LOGGER.warn("Already existing pool, shutting down new one");
+        shutdownPool(newPool);
       }
-      sb.append("---------------------");
-      LOGGER.finer(sb.toString());
+    }
+
+    LOGGER.debug(poolsToString());
+  }
+
+  private void onHostDown(Host host) {
+    HikariPool pool = pools.remove(host);
+    if (pool == null) {
+      LOGGER.trace("Cannot remove connection pool for removed host: " + host.toString() + ": No associated pool found.");
+      return;
+    }
+    LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host down).");
+    shutdownPool(pool);
+    LOGGER.debug(poolsToString());
+  }
+
+  private void onHostRemoved(Host host) {
+    HikariPool pool = pools.remove(host);
+    if (pool != null) {
+      LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host removed).");
+      shutdownPool(pool);
+      LOGGER.debug(poolsToString());
     }
   }
 
+  private String poolsToString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("-------- Pools --------\n");
+    for (Map.Entry<Host, HikariPool> entry : pools.entrySet()) {
+      sb.append(entry.getKey()).append(" : ").append(entry.getValue().getTotalConnections()).append("\n");
+    }
+    sb.append("-----------------------");
+    return sb.toString();
+  }
 
   private void shutdownPool(HikariPool pool) {
     if (pool != null) {
       try {
         pool.shutdown();
       } catch (InterruptedException e) {
-        LOGGER.warning(pool.toString() + " - Interrupted during closing: " + e.toString());
+        LOGGER.warn(pool.toString() + " - Interrupted during closing: " + e.toString());
         Thread.currentThread().interrupt();
       }
     }

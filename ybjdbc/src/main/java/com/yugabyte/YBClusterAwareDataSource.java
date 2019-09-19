@@ -14,17 +14,19 @@
 package com.yugabyte;
 
 import org.postgresql.PGProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-import java.util.logging.Logger;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import javax.sql.DataSource;
 
 public class YBClusterAwareDataSource implements DataSource {
+  private static final Logger LOGGER = LoggerFactory.getLogger(YBClusterAwareDataSource.class);
 
   private final static int DEFAULT_MAX_POOL_SIZE_PER_NODE = 6;
   private final static String DEFAULT_DATA_SOURCE =  "org.postgresql.ds.PGSimpleDataSource";
@@ -110,7 +112,8 @@ public class YBClusterAwareDataSource implements DataSource {
   }
 
   @Override
-  public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+  public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return null;
   }
+
 }
