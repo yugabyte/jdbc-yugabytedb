@@ -15,10 +15,14 @@ package com.yugabyte;
 
 import com.datastax.driver.core.Cluster;
 import com.zaxxer.hikari.pool.HikariPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 
 class YBClusterManager {
+  private static final Logger LOGGER = LoggerFactory.getLogger(YBClusterManager.class);
+
   private YBConnectionLoadBalancingPolicy policy;
 
   YBClusterManager(String host, Properties poolProperties) {
@@ -26,7 +30,6 @@ class YBClusterManager {
     Cluster cluster = Cluster.builder().addContactPoint(host)
                                .withLoadBalancingPolicy(policy)
                                .build();
-
     policy.init(cluster);
   }
 
