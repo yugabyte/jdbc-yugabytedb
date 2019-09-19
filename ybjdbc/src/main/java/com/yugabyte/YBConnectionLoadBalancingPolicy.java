@@ -117,7 +117,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     Set<Host> unknownHosts = new HashSet<>();
     for (Host host : poolsHosts) {
       if (!allHosts.contains(host)) {
-        LOGGER.debug("UnknownHost: " + host.toString());
+        LOGGER.debug("UnknownHost: " + hostToString(host));
         unknownHosts.add(host);
       }
     }
@@ -135,12 +135,12 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
           // If we have an existing, active pool we can just reuse it.
           continue;
         } else if (pool != null && pool.poolState == POOL_SUSPENDED) {
-          LOGGER.debug("Resuming pool for host: " + host.toString());
+          LOGGER.debug("Resuming pool for host: " + hostToString(host));
           // If pool is suspended (a down node just came back up) just resume it.
           pool.resumePool();
         } else {
           if (pool == null) {
-            LOGGER.debug("Initializing connection pool for host " + host.toString() + " (host up).");
+            LOGGER.debug("Initializing connection pool for host " + hostToString(host) + " (host up).");
             // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
             String hostName = host.getAddress().getHostName();
             Properties properties = (Properties) poolProperties.clone();
@@ -157,7 +157,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
         }
       } else {
         if (pool != null && pool.poolState == POOL_NORMAL) {
-          LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host down).");
+          LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host down).");
           shutdownPool(pool);
         }
       }
@@ -172,14 +172,14 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
       return;
     }
 
-    LOGGER.debug("Initializing connection pool for host " + host.toString() + " (host up).");
+    LOGGER.debug("Initializing connection pool for host " + hostToString(host) + " (host up).");
 
     if (pool != null && pool.poolState == POOL_SUSPENDED) {
-      LOGGER.trace("Resuming pool for host: " + host.toString());
+      LOGGER.trace("Resuming pool for host: " + hostToString(host));
       // If pool is suspended (a down node just came back up) just resume it.
       pool.resumePool();
     } else { // pool == null || pool.poolState == POOL_SHUTDOWN
-      LOGGER.trace("Initializing pool for host: " + host.toString());
+      LOGGER.trace("Initializing pool for host: " + hostToString(host));
       // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
       String hostName = host.getAddress().getHostName();
       Properties properties = (Properties) poolProperties.clone();
@@ -200,10 +200,10 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
   private void onHostDown(Host host) {
     HikariPool pool = pools.remove(host);
     if (pool == null) {
-      LOGGER.trace("Cannot remove connection pool for removed host: " + host.toString() + ": No associated pool found.");
+      LOGGER.trace("Cannot remove connection pool for removed host: " + hostToString(host) + ": No associated pool found.");
       return;
     }
-    LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host down).");
+    LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host down).");
     shutdownPool(pool);
     LOGGER.debug(poolsToString());
   }
@@ -211,7 +211,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
   private void onHostRemoved(Host host) {
     HikariPool pool = pools.remove(host);
     if (pool != null) {
-      LOGGER.debug("Removing connection pool for host: " + host.toString() + " (host removed).");
+      LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host removed).");
       shutdownPool(pool);
       LOGGER.debug(poolsToString());
     }
@@ -221,10 +221,15 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     StringBuilder sb = new StringBuilder();
     sb.append("-------- Pools --------\n");
     for (Map.Entry<Host, HikariPool> entry : pools.entrySet()) {
-      sb.append(entry.getKey()).append(" : ").append(entry.getValue().getTotalConnections()).append("\n");
+      sb.append(hostToString(entry.getKey()));
+      sb.append(" : ").append(entry.getValue().getTotalConnections()).append("\n");
     }
     sb.append("-----------------------");
     return sb.toString();
+  }
+
+  private String hostToString(Host host) {
+    return host.getSocketAddress().getAddress().toString();
   }
 
   private void shutdownPool(HikariPool pool) {
