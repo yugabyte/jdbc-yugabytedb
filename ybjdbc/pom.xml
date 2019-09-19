@@ -1,19 +1,49 @@
+<!--
+      The following only applies to changes made to this file as part of YugaByte development.
+
+         Portions Copyright (c) YugaByte, Inc.
+
+      Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+      except in compliance with the License.  You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+      Unless required by applicable law or agreed to in writing, software distributed under the
+      License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+      either express or implied.  See the License for the specific language governing permissions
+      and limitations under the License.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
-    <groupId>org.postgresql</groupId>
-    <artifactId>pgjdbc-core-parent</artifactId>
-    <version>1.1.6</version>
-    <relativePath />
+    <groupId>com.yugabyte</groupId>
+    <artifactId>ybjdbc-aggregate</artifactId>
+    <version>42.2.7-yb-1-SNAPSHOT</version>
   </parent>
 
-  <groupId>com.yugabyte</groupId>
   <artifactId>ysql</artifactId>
-  <packaging>bundle</packaging>
+  <packaging>jar</packaging>
   <name>YugaByte SQL JDBC Driver - JDBC 4.2</name>
   <version>42.2.7-yb-1-SNAPSHOT</version>
   <description>Java JDBC 4.2 (JRE 8+) driver for YugaByte SQL database</description>
-  <url>https://github.com/YugaByte/ybjdbc</url>
+  <url>https://github.com/yugabyte/ybjdbc</url>
+
+  <scm>
+    <connection>scm:git:git@github.com:yugabyte/ybjdbc.git</connection>
+    <developerConnection>scm:git:git@github.com:yugabyte/ybjdbc.git</developerConnection>
+    <url>https://github.com/yugabyte/ybjdbc</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <developers>
+    <developer>
+      <name>YugaByte Development Team</name>
+      <email>info@yugabyte.com</email>
+      <organization>YugaByte, Inc.</organization>
+      <organizationUrl>https://www.yugabyte.com</organizationUrl>
+    </developer>
+  </developers>
 
   <licenses>
     <license>
@@ -22,22 +52,72 @@
     </license>
   </licenses>
 
-  <organization>
-    <name>PostgreSQL Global Development Group</name>
-    <url>https://jdbc.postgresql.org/</url>
-  </organization>
-
   <properties>
     <!-- Require JDK 1.8 or later -->
-    <javac.target>1.8</javac.target>
-    <postgresql.enforce.jdk.version>1.8</postgresql.enforce.jdk.version>
+    <java.version>1.8</java.version>
     <jdbc.specification.version>4.2</jdbc.specification.version>
     <jdbc.specification.version.nodot>42</jdbc.specification.version.nodot>
     <skip.assembly>false</skip.assembly>
     <checkstyle.version>[8.18,)</checkstyle.version>
+    <waffle-jna.version>1.9.1</waffle-jna.version>
   </properties>
 
   <dependencies>
+    <!-- Dependencies from pgjdbc-parent-poms/pgjdbc-versions -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.waffle</groupId>
+      <artifactId>waffle-jna</artifactId>
+      <version>${waffle-jna.version}</version>
+      <!--
+       We want to force most of Waffle's transitive dependencies to runtime
+       dependencies so we can't accidentally depend on their contents at
+       compile time. So exclude them from the compile dependencies, then
+       declare another runtime dependency on waffle-jna without these
+       exclusions later.
+      -->
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+        </exclusion>
+      </exclusions>
+      <!--
+       Note that we do NOT exclude net.java.dev.jna:jna or
+       net.java.dev.jna:jna-platform since we intentionally use the one
+       Waffle exposes.
+      -->
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.core</artifactId>
+      <version>4.3.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.enterprise</artifactId>
+      <version>4.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>se.jiderhamn</groupId>
+      <artifactId>classloader-leak-test-framework</artifactId>
+      <version>1.1.1</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Local dependencies -->
     <dependency>
       <groupId>com.ongres.scram</groupId>
       <artifactId>client</artifactId>
@@ -53,6 +133,7 @@
       <artifactId>HikariCP</artifactId>
       <version>3.3.1</version>
     </dependency>
+
   </dependencies>
 
   <profiles>
@@ -172,12 +253,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <excludes>
-                <exclude>**/OsgiTestSuite.java</exclude>
-                <exclude>**/PGDataSourceFactoryTest.java</exclude>
-              </excludes>
-            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -238,7 +313,36 @@
       </build>
     </profile>
 
+    <profile>
+      <id>enforce-java8</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>1.4.1</version>
+            <executions>
+              <execution>
+                <id>enforce-java8</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireJavaVersion>
+                      <version>1.8</version>
+                    </requireJavaVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
+
 
   <build>
     <plugins>
@@ -301,6 +405,54 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <skipTests>true</skipTests>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.3</version>
+        <configuration>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <optimize>true</optimize>
+          <showDeprecation>true</showDeprecation>
+          <showWarnings>true</showWarnings>
+          <useIncrementalCompilation>false</useIncrementalCompilation>
+
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.5</version>
+        <configuration>
+          <tagNameFormat>@{project.version}</tagNameFormat>
+          <preparationGoals>clean verify -Penforce-java8</preparationGoals>
+          <arguments>-Psonatype-oss-release ${release.arguments}</arguments>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.6</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -336,4 +488,5 @@
       </plugins>
     </pluginManagement>
   </build>
+
 </project>

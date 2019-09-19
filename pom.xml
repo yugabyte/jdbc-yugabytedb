@@ -1,9 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
-    <groupId>org.postgresql</groupId>
-    <artifactId>pgjdbc-versions</artifactId>
-    <version>1.1.6</version>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+    <relativePath />
   </parent>
 
   <groupId>com.yugabyte</groupId>
@@ -20,10 +22,31 @@
 
   <!-- If inherited from parent pom, maven tries to add artifactId to URLs -->
   <scm>
-    <url>https://github.com/YugaByte/ybjdbc</url>
-    <connection>scm:git:https://github.com/YugaByte/ybjdbc.git</connection>
-    <developerConnection>scm:git:git@github.com:YugaByte/ybjdbc.git</developerConnection>
+    <connection>scm:git:git@github.com:yugabyte/ybjdbc.git</connection>
+    <developerConnection>scm:git:git@github.com:yugabyte/ybjdbc.git</developerConnection>
+    <url>https://github.com/yugabyte/ybjdbc</url>
     <tag>HEAD</tag>
   </scm>
+
+  <developers>
+    <developer>
+      <name>YugaByte Development Team</name>
+      <email>info@yugabyte.com</email>
+      <organization>YugaByte, Inc.</organization>
+      <organizationUrl>https://www.yugabyte.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <distributionManagement>
+    <repository>
+      <id>${yugabyte.releases.repository.id}</id>
+      <url>${yugabyte.releases.repository.url}</url>
+    </repository>
+    <snapshotRepository>
+      <id>${yugabyte.snapshots.repository.id}</id>
+      <url>${yugabyte.snapshots.repository.url}</url>
+    </snapshotRepository>
+  </distributionManagement>
+
 
 </project>
