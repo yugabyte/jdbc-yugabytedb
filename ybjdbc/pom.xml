@@ -19,13 +19,13 @@
   <parent>
     <groupId>com.yugabyte</groupId>
     <artifactId>ybjdbc-aggregate</artifactId>
-    <version>42.2.7-yb-1-SNAPSHOT</version>
+    <version>42.2.7-yb-1</version>
   </parent>
 
   <artifactId>ysql</artifactId>
   <packaging>jar</packaging>
   <name>YugaByte SQL JDBC Driver - JDBC 4.2</name>
-  <version>42.2.7-yb-1-SNAPSHOT</version>
+  <version>42.2.7-yb-1</version>
   <description>Java JDBC 4.2 (JRE 8+) driver for YugaByte SQL database</description>
   <url>https://github.com/yugabyte/ybjdbc</url>
 
