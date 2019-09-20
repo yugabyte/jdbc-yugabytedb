@@ -12,7 +12,7 @@
   <artifactId>ybjdbc-aggregate</artifactId>
   <packaging>pom</packaging>
   <name>YugaByte SQL JDBC Driver aggregate</name>
-  <version>42.2.7-yb-1</version>
+  <version>42.2.7-yb-2-SNAPSHOT</version>
   <description>YugaByte JDBC aggregate project</description>
   <url>https://github.com/YugaByte/ybjdbc</url>
 
