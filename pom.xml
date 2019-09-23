@@ -6,22 +6,23 @@
     <version>1.1.6</version>
   </parent>
 
-  <artifactId>pgjdbc-aggregate</artifactId>
+  <groupId>com.yugabyte</groupId>
+  <artifactId>ybjdbc-aggregate</artifactId>
   <packaging>pom</packaging>
-  <name>PostgreSQL JDBC Driver aggregate</name>
-  <version>42.2.7-SNAPSHOT</version>
-  <description>PgJDBC aggregate project</description>
-  <url>https://github.com/pgjdbc/pgjdbc</url>
+  <name>YugaByte SQL JDBC Driver aggregate</name>
+  <version>42.2.7-yb-1-SNAPSHOT</version>
+  <description>YugaByte JDBC aggregate project</description>
+  <url>https://github.com/YugaByte/ybjdbc</url>
 
   <modules>
-    <module>pgjdbc</module>
+    <module>ybjdbc</module>
   </modules>
 
   <!-- If inherited from parent pom, maven tries to add artifactId to URLs -->
   <scm>
-    <url>https://github.com/pgjdbc/pgjdbc</url>
-    <connection>scm:git:https://github.com/pgjdbc/pgjdbc.git</connection>
-    <developerConnection>scm:git:git@github.com:pgjdbc/pgjdbc.git</developerConnection>
+    <url>https://github.com/YugaByte/ybjdbc</url>
+    <connection>scm:git:https://github.com/YugaByte/ybjdbc.git</connection>
+    <developerConnection>scm:git:git@github.com:YugaByte/ybjdbc.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 

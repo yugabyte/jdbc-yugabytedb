@@ -7,12 +7,13 @@
     <relativePath />
   </parent>
 
-  <artifactId>postgresql</artifactId>
+  <groupId>com.yugabyte</groupId>
+  <artifactId>ysql</artifactId>
   <packaging>bundle</packaging>
-  <name>PostgreSQL JDBC Driver - JDBC 4.2</name>
-  <version>42.2.7-SNAPSHOT</version>
-  <description>Java JDBC 4.2 (JRE 8+) driver for PostgreSQL database</description>
-  <url>https://github.com/pgjdbc/pgjdbc</url>
+  <name>YugaByte SQL JDBC Driver - JDBC 4.2</name>
+  <version>42.2.7-yb-1-SNAPSHOT</version>
+  <description>Java JDBC 4.2 (JRE 8+) driver for YugaByte SQL database</description>
+  <url>https://github.com/YugaByte/ybjdbc</url>
 
   <licenses>
     <license>
@@ -41,6 +42,16 @@
       <groupId>com.ongres.scram</groupId>
       <artifactId>client</artifactId>
       <version>2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.yugabyte</groupId>
+      <artifactId>cassandra-driver-core</artifactId>
+      <version>3.2.0-yb-18</version>
+    </dependency>
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>3.3.1</version>
     </dependency>
   </dependencies>
 
