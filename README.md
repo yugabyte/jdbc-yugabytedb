@@ -48,19 +48,18 @@ Add the following lines to your maven project.
 
 ## Use the Driver
 
-### Create the DataSource
-```
-String jdbcUrl = "jdbc:postgresql://127.0.0.1:5433/yugabyte";
-YBClusterAwareDataSource ds = new YBClusterAwareDataSource(jdbcUrl);
-```
+- Create the DataSource by passing an initial contact point
+    ```
+    String jdbcUrl = "jdbc:postgresql://127.0.0.1:5433/yugabyte";
+    YBClusterAwareDataSource ds = new YBClusterAwareDataSource(jdbcUrl);
+    ```
 
-### Use like a regular (pooling) DataSource
-
-```
-// Using try-with-resources to auto-close the connection when done.
-try (Connection connection = ds.getConnection()) {
-	// Use the connection as usual.
-} catch (java.sql.SQLException e) {
-	// Handle/Report error.
-}
-```
+- Use like a regular (pooling) DataSource
+    ```
+    // Using try-with-resources to auto-close the connection when done.
+    try (Connection connection = ds.getConnection()) {
+        // Use the connection as usual.
+    } catch (java.sql.SQLException e) {
+        // Handle/Report error.
+    }
+    ```
