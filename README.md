@@ -9,7 +9,7 @@ Then, whenever the connection is closed it will be returned to the respective po
 
 ## Get the Driver
 
-### Use from Maven
+### From Maven
 
 Add the following lines to your maven project.
 
