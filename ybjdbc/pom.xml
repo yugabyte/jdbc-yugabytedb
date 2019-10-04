@@ -123,11 +123,13 @@
       <artifactId>client</artifactId>
       <version>2.0</version>
     </dependency>
+
     <dependency>
       <groupId>com.yugabyte</groupId>
       <artifactId>cassandra-driver-core</artifactId>
       <version>3.2.0-yb-18</version>
     </dependency>
+
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
@@ -355,6 +357,7 @@
           <outputEncoding>UTF-8</outputEncoding>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -399,6 +402,14 @@
                 <relocation>
                   <pattern>com.ongres</pattern>
                   <shadedPattern>org.postgresql.shaded.com.ongres</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.datastax</pattern>
+                  <shadedPattern>com.shaded.datastax</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>com.shaded.google</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
@@ -453,6 +464,7 @@
           </execution>
         </executions>
       </plugin>
+
     </plugins>
 
     <pluginManagement>
