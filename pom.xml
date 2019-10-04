@@ -22,9 +22,9 @@
 
   <!-- If inherited from parent pom, maven tries to add artifactId to URLs -->
   <scm>
-    <connection>scm:git:git@github.com:yugabyte/ybjdbc.git</connection>
-    <developerConnection>scm:git:git@github.com:yugabyte/ybjdbc.git</developerConnection>
-    <url>https://github.com/yugabyte/ybjdbc</url>
+    <connection>scm:git:git@github.com:yugabyte/jdbc-yugabytedb.git</connection>
+    <developerConnection>scm:git:git@github.com:yugabyte/jdbc-yugabytedb.git</developerConnection>
+    <url>https://github.com/yugabyte/jdbc-yugabytedb</url>
     <tag>HEAD</tag>
   </scm>
 
