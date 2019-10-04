@@ -11,7 +11,7 @@
 // under the License.
 //
 
-package com.yugabyte;
+package com.yugabyte.ysql;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Host;
@@ -140,7 +140,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
           pool.resumePool();
         } else {
           if (pool == null) {
-            LOGGER.debug("Initializing connection pool for host " + hostToString(host) + " (host up).");
+            LOGGER.info("Initializing connection pool for YSQL host " + hostToString(host) + " (host up).");
             // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
             String hostName = host.getAddress().getHostName();
             Properties properties = (Properties) poolProperties.clone();
@@ -157,7 +157,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
         }
       } else {
         if (pool != null && pool.poolState == POOL_NORMAL) {
-          LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host down).");
+          LOGGER.info("Removing connection pool for YSQL host: " + hostToString(host) + " (host down).");
           shutdownPool(pool);
         }
       }
@@ -172,14 +172,14 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
       return;
     }
 
-    LOGGER.debug("Initializing connection pool for host " + hostToString(host) + " (host up).");
+    LOGGER.info("Initializing connection pool for YSQL host " + hostToString(host) + " (host up).");
 
     if (pool != null && pool.poolState == POOL_SUSPENDED) {
       LOGGER.trace("Resuming pool for host: " + hostToString(host));
       // If pool is suspended (a down node just came back up) just resume it.
       pool.resumePool();
     } else { // pool == null || pool.poolState == POOL_SHUTDOWN
-      LOGGER.trace("Initializing pool for host: " + hostToString(host));
+      LOGGER.trace("Initializing new pool for host: " + hostToString(host));
       // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
       String hostName = host.getAddress().getHostName();
       Properties properties = (Properties) poolProperties.clone();
@@ -203,7 +203,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
       LOGGER.trace("Cannot remove connection pool for removed host: " + hostToString(host) + ": No associated pool found.");
       return;
     }
-    LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host down).");
+    LOGGER.info("Removing connection pool for YSQL host: " + hostToString(host) + " (host down).");
     shutdownPool(pool);
     LOGGER.debug(poolsToString());
   }
@@ -211,7 +211,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
   private void onHostRemoved(Host host) {
     HikariPool pool = pools.remove(host);
     if (pool != null) {
-      LOGGER.debug("Removing connection pool for host: " + hostToString(host) + " (host removed).");
+      LOGGER.info("Removing connection pool for YSQL host: " + hostToString(host) + " (host removed).");
       shutdownPool(pool);
       LOGGER.debug(poolsToString());
     }

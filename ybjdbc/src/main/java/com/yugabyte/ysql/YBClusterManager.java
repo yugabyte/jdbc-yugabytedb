@@ -11,7 +11,7 @@
 // under the License.
 //
 
-package com.yugabyte;
+package com.yugabyte.ysql;
 
 import com.datastax.driver.core.Cluster;
 import com.zaxxer.hikari.pool.HikariPool;
