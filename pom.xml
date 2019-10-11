@@ -9,7 +9,7 @@
   </parent>
 
   <groupId>com.yugabyte</groupId>
-  <artifactId>ybjdbc-aggregate</artifactId>
+  <artifactId>jdbc-yugabytedb-aggregate</artifactId>
   <packaging>pom</packaging>
   <name>YugaByte SQL JDBC Driver aggregate</name>
   <version>42.2.7-yb-3-SNAPSHOT</version>
@@ -17,7 +17,7 @@
   <url>https://github.com/YugaByte/ybjdbc</url>
 
   <modules>
-    <module>ybjdbc</module>
+    <module>jdbc-yugabytedb</module>
   </modules>
 
   <!-- If inherited from parent pom, maven tries to add artifactId to URLs -->
