@@ -20,14 +20,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 
-class YBClusterManager {
+class YBClusterManager implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(YBClusterManager.class);
 
   private YBConnectionLoadBalancingPolicy policy;
+  private Cluster cluster;
 
   YBClusterManager(String host, Properties poolProperties) {
     policy = new YBConnectionLoadBalancingPolicy(poolProperties);
-    Cluster cluster = Cluster.builder().addContactPoint(host)
+    cluster = Cluster.builder().addContactPoint(host)
                                .withLoadBalancingPolicy(policy)
                                .build();
     policy.init(cluster);
@@ -37,4 +38,9 @@ class YBClusterManager {
     return policy.getPool();
   }
 
+  @Override
+  public void close() {
+    policy.close();
+    cluster.close();
+  }
 }

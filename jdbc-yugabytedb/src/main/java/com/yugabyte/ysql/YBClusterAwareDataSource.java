@@ -14,6 +14,8 @@
 package com.yugabyte.ysql;
 
 import org.postgresql.PGProperty;
+import org.postgresql.ds.PGSimpleDataSource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +27,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 
-public class YBClusterAwareDataSource implements DataSource {
+public class YBClusterAwareDataSource implements DataSource, AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(YBClusterAwareDataSource.class);
 
   private final static String DEFAULT_DATA_SOURCE =  "org.postgresql.ds.PGSimpleDataSource";
@@ -194,6 +196,12 @@ public class YBClusterAwareDataSource implements DataSource {
   @Override
   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return null;
+  }
+
+  public void close() {
+    if (initialized) {
+      clusterManager.close();
+    }
   }
 
 }

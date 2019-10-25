@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.zaxxer.hikari.pool.HikariPool.*;
 
@@ -34,7 +35,7 @@ import static com.zaxxer.hikari.pool.HikariPool.*;
  * Based on the YCQL RoundRobinPolicy implementation.
  // TODO The load-balacing/cluster-manager code should be refactored away to be API-agnostic.
  */
-public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
+public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(YBConnectionLoadBalancingPolicy.class);
 
   // Dummy keyspace needed to pass to the YCQL-specific functions.
@@ -48,22 +49,24 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
   private final ConcurrentMap<Host, HikariPool> pools;
   private Cluster cluster = null;
 
+  private final AtomicBoolean isShutdown = new AtomicBoolean();
+
   YBConnectionLoadBalancingPolicy(Properties poolProperties) {
     this.poolProperties = poolProperties;
     this.pools = new ConcurrentHashMap<>();
   }
 
-  public HikariPool getPool() throws IllegalStateException {
+  HikariPool getPool() throws IllegalStateException {
+    if (isClosed()) {
+      throw new IllegalStateException("Data source connection manager has been closed.");
+    }
+
     Iterator<Host> hosts = newQueryPlan(DUMMY_KEYSPACE, DUMMY_STATEMENT);
     while (hosts.hasNext()) {
       Host host = hosts.next();
       HikariPool pool = pools.get(host);
-      if (pool != null && pool.poolState == POOL_NORMAL) {
-        if (pool.getTotalConnections() > 0) { // TODO -- is this needed?.
-          return pool;
-        }
-      } else {
-        renewPools();
+      if (pool != null && pool.poolState == POOL_NORMAL && pool.getTotalConnections() > 0) {
+        return pool;
       }
     }
 
@@ -142,17 +145,7 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
           if (pool == null) {
             LOGGER.info("Initializing connection pool for YSQL host " + hostToString(host) + " (host up).");
             // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
-            String hostName = host.getAddress().getHostName();
-            Properties properties = (Properties) poolProperties.clone();
-            properties.setProperty("dataSource.serverName", hostName);
-            HikariConfig config = new HikariConfig(properties);
-            config.validate();
-            HikariPool newPool =  new HikariPool(config);
-            HikariPool existing = pools.putIfAbsent(host, newPool);
-            if (existing != null) {
-              LOGGER.warn("Already existing pool, shutting down new one");
-              shutdownPool(newPool);
-            }
+            createPool(host);
           }
         }
       } else {
@@ -162,7 +155,10 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
         }
       }
     }
-    LOGGER.debug(poolsToString());
+
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(poolsToString());
+    }
   }
 
   private void onHostUp(Host host) {
@@ -181,20 +177,12 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     } else { // pool == null || pool.poolState == POOL_SHUTDOWN
       LOGGER.trace("Initializing new pool for host: " + hostToString(host));
       // If pool for this node is missing (new node) or shutdown, we need to create a new pool.
-      String hostName = host.getAddress().getHostName();
-      Properties properties = (Properties) poolProperties.clone();
-      properties.setProperty("dataSource.serverName", hostName);
-      HikariConfig config = new HikariConfig(properties);
-      config.validate();
-      HikariPool newPool = new HikariPool(config);
-      HikariPool existing = pools.putIfAbsent(host, newPool);
-      if (existing != null) {
-        LOGGER.warn("Already existing pool, shutting down new one");
-        shutdownPool(newPool);
-      }
+      createPool(host);
     }
 
-    LOGGER.debug(poolsToString());
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(poolsToString());
+    }
   }
 
   private void onHostDown(Host host) {
@@ -205,7 +193,10 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     }
     LOGGER.info("Removing connection pool for YSQL host: " + hostToString(host) + " (host down).");
     shutdownPool(pool);
-    LOGGER.debug(poolsToString());
+
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(poolsToString());
+    }
   }
 
   private void onHostRemoved(Host host) {
@@ -213,7 +204,9 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     if (pool != null) {
       LOGGER.info("Removing connection pool for YSQL host: " + hostToString(host) + " (host removed).");
       shutdownPool(pool);
-      LOGGER.debug(poolsToString());
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(poolsToString());
+      }
     }
   }
 
@@ -232,6 +225,25 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     return host.getSocketAddress().getAddress().toString();
   }
 
+  private void createPool(Host host) {
+    String hostName = host.getAddress().getHostName();
+    Properties properties = (Properties) poolProperties.clone();
+    properties.setProperty("dataSource.serverName", hostName);
+    properties.setProperty("poolName", hostName);
+    HikariConfig config = new HikariConfig(properties);
+    config.validate();
+    try {
+      HikariPool newPool = new HikariPool(config);
+      HikariPool existing = pools.putIfAbsent(host, newPool);
+      if (existing != null) {
+        LOGGER.warn("Already existing pool, shutting down new one");
+        shutdownPool(newPool);
+      }
+    } catch (PoolInitializationException e) {
+      LOGGER.error("Cannot start connection pool for host " + hostName + ". " + e.getMessage());
+    }
+  }
+
   private void shutdownPool(HikariPool pool) {
     if (pool != null) {
       try {
@@ -243,4 +255,20 @@ public class YBConnectionLoadBalancingPolicy extends RoundRobinPolicy {
     }
   }
 
+  @Override
+  public void close() {
+    if (isShutdown.getAndSet(true)) {
+      return;
+    }
+    super.close();
+
+    for (HikariPool pool : pools.values()) {
+      shutdownPool(pool);
+    }
+    pools.clear();
+  }
+
+  public boolean isClosed() {
+    return isShutdown.get();
+  }
 }
