@@ -58,7 +58,25 @@
     <jdbc.specification.version>4.2</jdbc.specification.version>
     <jdbc.specification.version.nodot>42</jdbc.specification.version.nodot>
     <skip.assembly>false</skip.assembly>
+
+    <cassandra-driver-core.version>3.2.0-yb-18</cassandra-driver-core.version>
     <checkstyle.version>[8.18,)</checkstyle.version>
+    <classloader-leak-test-framework.version>1.1.1</classloader-leak-test-framework.version>
+    <gettext-maven-plugin.version>1.4.0</gettext-maven-plugin.version>
+    <hikaricp.version>3.3.1</hikaricp.version>
+    <junit.version>4.12</junit.version>
+    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <maven-compiler-plugin.version>3.3</maven-compiler-plugin.version>
+    <maven-enforcer-plugin.version>1.4.1</maven-enforcer-plugin.version>
+    <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
+    <maven-release-plugin.version>2.5</maven-release-plugin.version>
+    <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
+    <maven-site-plugin.version>3.8.2</maven-site-plugin.version>
+    <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
+    <osgi.core.version>4.3.1</osgi.core.version>
+    <osgi.enterprise.version>4.2.0</osgi.enterprise.version>
+    <scram.version>2.0</scram.version>
+    <slf4j.version>1.7.28</slf4j.version>
     <waffle-jna.version>1.9.1</waffle-jna.version>
   </properties>
 
@@ -67,7 +85,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
+      <version>${junit.version}</version>
     </dependency>
     <dependency>
       <groupId>com.github.waffle</groupId>
@@ -103,17 +121,17 @@
     <dependency>
       <groupId>org.osgi</groupId>
       <artifactId>org.osgi.core</artifactId>
-      <version>4.3.1</version>
+      <version>${osgi.core.version}</version>
     </dependency>
     <dependency>
       <groupId>org.osgi</groupId>
       <artifactId>org.osgi.enterprise</artifactId>
-      <version>4.2.0</version>
+      <version>${osgi.enterprise.version}</version>
     </dependency>
     <dependency>
       <groupId>se.jiderhamn</groupId>
       <artifactId>classloader-leak-test-framework</artifactId>
-      <version>1.1.1</version>
+      <version>${classloader-leak-test-framework.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -121,19 +139,37 @@
     <dependency>
       <groupId>com.ongres.scram</groupId>
       <artifactId>client</artifactId>
-      <version>2.0</version>
+      <version>${scram.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.yugabyte</groupId>
       <artifactId>cassandra-driver-core</artifactId>
-      <version>3.2.0-yb-18</version>
+      <version>${cassandra-driver-core.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
-      <version>3.3.1</version>
+      <version>${hikaricp.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4j.version}</version>
     </dependency>
 
   </dependencies>
@@ -149,7 +185,7 @@
           <plugin>
             <groupId>com.github.vlsi.gettext</groupId>
             <artifactId>gettext-maven-plugin</artifactId>
-            <version>1.4.0</version>
+            <version>${gettext-maven-plugin.version}</version>
             <executions>
               <execution>
                 <id>update_po_with_new_messages</id>
@@ -322,7 +358,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-enforcer-plugin</artifactId>
-            <version>1.4.1</version>
+            <version>${maven-enforcer-plugin.version}</version>
             <executions>
               <execution>
                 <id>enforce-java8</id>
@@ -351,6 +387,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-site-plugin</artifactId>
+        <version>${maven-site-plugin.version}</version>
         <configuration>
           <chmod>true</chmod>
           <inputEncoding>UTF-8</inputEncoding>
@@ -361,7 +398,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>${maven-shade-plugin.version}</version>
         <configuration>
           <minimizeJar>true</minimizeJar>
           <filters>
@@ -420,6 +457,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
         <configuration>
           <skipTests>true</skipTests>
         </configuration>
@@ -427,7 +465,7 @@
 
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.3</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
@@ -442,7 +480,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
-        <version>2.5</version>
+        <version>${maven-release-plugin.version}</version>
         <configuration>
           <tagNameFormat>@{project.version}</tagNameFormat>
           <preparationGoals>clean verify -Penforce-java8</preparationGoals>
@@ -453,7 +491,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-gpg-plugin</artifactId>
-        <version>1.6</version>
+        <version>${maven-gpg-plugin.version}</version>
         <executions>
           <execution>
             <id>sign-artifacts</id>
@@ -472,7 +510,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-checkstyle-plugin.version}</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
