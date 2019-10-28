@@ -44,6 +44,9 @@ public class YBClusterAwareDataSource implements DataSource, AutoCloseable {
   private String user = "yugabyte";
   private String password = "yugabyte";
 
+  private String ycqlUser = "cassandra";
+  private String ycqlPassword = "cassandra";
+
   // Pool config.
   private int maxPoolSizePerNode = 8;
   private int connectionTimeoutMs = 10000; // 10 seconds.
@@ -86,7 +89,10 @@ public class YBClusterAwareDataSource implements DataSource, AutoCloseable {
       poolProperties.setProperty("dataSource.user", user);
       poolProperties.setProperty("dataSource.password", password);
 
-      clusterManager = new YBClusterManager(initialHost, poolProperties);
+      clusterManager = new YBClusterManager(initialHost,
+                                            poolProperties,
+                                            ycqlUser,
+                                            ycqlPassword);
 
       initialized = true;
     }
@@ -137,6 +143,11 @@ public class YBClusterAwareDataSource implements DataSource, AutoCloseable {
   public void setConnectionTimeoutMs(int connectionTimeoutMs) {
     checkNotInitialized();
     this.connectionTimeoutMs = connectionTimeoutMs;
+  }
+
+  public void setYcqlCredentials(String user, String password) {
+    this.ycqlUser = user;
+    this.ycqlPassword = password;
   }
 
   @Override

@@ -26,10 +26,11 @@ class YBClusterManager implements AutoCloseable {
   private YBConnectionLoadBalancingPolicy policy;
   private Cluster cluster;
 
-  YBClusterManager(String host, Properties poolProperties) {
+  YBClusterManager(String host, Properties poolProperties, String ycqlUser, String ycqlPassword) {
     policy = new YBConnectionLoadBalancingPolicy(poolProperties);
     cluster = Cluster.builder().addContactPoint(host)
                                .withLoadBalancingPolicy(policy)
+                               .withCredentials(ycqlUser, ycqlPassword)
                                .build();
     policy.init(cluster);
   }
