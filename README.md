@@ -15,9 +15,9 @@ Add the following lines to your maven project.
 
 ```
 <dependency>
-    <groupId>com.yugabyte</groupId>
-    <artifactId>ysql</artifactId>
-    <version>42.2.7-yb-1</version>
+  <groupId>com.yugabyte</groupId>
+  <artifactId>jdbc-yugabytedb</artifactId>
+  <version>42.2.7-yb-3</version>
 </dependency>
 ```
 
@@ -27,7 +27,7 @@ Add the following lines to your maven project.
 1. Clone this repository.
 
     ```
-    git clone https://github.com/yugabyte/ybjdbc.git && cd ybjdbc
+    git clone https://github.com/yugabyte/jdbc-yugabytedb.git && cd jdbc-yugabytedb
     ```
 
 2. Build and install into your local maven folder.
@@ -41,8 +41,8 @@ Add the following lines to your maven project.
     ```xml
     <dependency>
         <groupId>com.yugabyte</groupId>
-        <artifactId>ysql</artifactId>
-        <version>42.2.7-yb-2-SNAPSHOT</version>
+        <artifactId>jdbc-yugabytedb</artifactId>
+        <version>42.2.7-yb-3-SNAPSHOT</version>
     </dependency> 
     ```
 
