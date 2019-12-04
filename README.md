@@ -1,8 +1,8 @@
 
-# YSQL JDBC Driver
+# YugabyteDB JDBC Driver
 JDBC driver for YugaByte YSQL.
-Based on the [Postgresql JDBC Driver](https://github.com/pgjdbc/pgjdbc).
-This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugaByte cluster.
+Based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
+This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugabyteDB cluster.
 Then it discovers the rest of the nodes and automatically responds to nodes being started/added or stopped/removed.
 Internally it maintains a connection pool for each node and it will choose a live node to get a connection.
 Then, whenever the connection is closed it will be returned to the respective pool.
