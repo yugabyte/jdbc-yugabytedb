@@ -8,6 +8,7 @@ Sample JDBC application using the cluster-aware https://github.com/yugabyte/jdbc
 
 See full instructions https://docs.yugabyte.com/latest/quick-start/install/[here].
 For instance on macOS:
+
 [source,sh]
 ----
 sudo ifconfig lo0 alias 127.0.0.2
@@ -18,6 +19,7 @@ sudo ifconfig lo0 alias 127.0.0.6
 sudo ifconfig lo0 alias 127.0.0.7
 wget https://downloads.yugabyte.com/yugabyte-2.0.1.0-darwin.tar.gz
 tar xvfz yugabyte-2.0.1.0-darwin.tar.gz && rm && cd yugabyte-2.0.1.0/
+----
 
 === 2. Download and start this sample app
 
