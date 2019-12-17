@@ -1,11 +1,24 @@
 
 # YugabyteDB JDBC Driver
-JDBC driver for YugaByte YSQL.
-Based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
-This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugabyteDB cluster.
-Then it discovers the rest of the nodes and automatically responds to nodes being started/added or stopped/removed.
-Internally it maintains a connection pool for each node and it will choose a live node to get a connection.
-Then, whenever the connection is closed it will be returned to the respective pool.
+This is a distributed JDBC driver for YugabyteDB SQL. This driver is based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
+
+## Features
+
+This JDBC driver has the following features:
+
+### Cluster Awareness to eliminate need for a load balancer
+
+This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugabyteDB cluster, using which it discovers the rest of the nodes. Additionally, it automatically learns about the nodes being started/added or stopped/removed. Internally a connection pool is maintained for each node. A random live node is chosen to connect to the cluster and execute a statement. it will choose a live node to get a connection. When the connection is closed by the application, it is returned to the respective pool.
+
+### Topology Awareness to enable geo-distributed apps
+
+> **NOTE:** This feature is still in progress.
+
+### Shard awareness for high performance
+
+> **NOTE:** This feature is still in the design phase.
+
+
 
 ## Get the Driver
 
