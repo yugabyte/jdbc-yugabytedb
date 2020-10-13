@@ -64,7 +64,7 @@
     <classloader-leak-test-framework.version>1.1.1</classloader-leak-test-framework.version>
     <gettext-maven-plugin.version>1.4.0</gettext-maven-plugin.version>
     <hikaricp.version>3.3.1</hikaricp.version>
-    <junit.version>4.12</junit.version>
+    <junit.version>4.13.1</junit.version>
     <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
     <maven-compiler-plugin.version>3.3</maven-compiler-plugin.version>
     <maven-enforcer-plugin.version>1.4.1</maven-enforcer-plugin.version>
