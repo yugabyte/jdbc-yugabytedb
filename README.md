@@ -2,6 +2,8 @@
 # YugabyteDB JDBC Driver
 This is a distributed JDBC driver for YugabyteDB SQL. This driver is based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
 
+> **NOTE:** This project is currently **experimental** and should not be used for production facing applications. If you are interested in more details or helping with this effort, let us know on the [Yugabyte Community Slack](https://www.yugabyte.com/slack).
+
 ## Features
 
 This JDBC driver has the following features:
