@@ -44,6 +44,8 @@ public abstract class ConnectionFactory {
       String database, Properties info) throws SQLException {
     String protoName = PGProperty.PROTOCOL_VERSION.get(info);
 
+    // request server information
+    // info.setProperty(REQUEST_SERVER_LOAD, "true");
     if (protoName == null || protoName.isEmpty() || "3".equals(protoName)) {
       ConnectionFactory connectionFactory = new ConnectionFactoryImpl();
       QueryExecutor queryExecutor = connectionFactory.openConnectionImpl(
@@ -58,6 +60,7 @@ public abstract class ConnectionFactory {
         PSQLState.CONNECTION_UNABLE_TO_CONNECT);
   }
 
+  public static String REQUEST_SERVER_LOAD = "REQUEST_SERVER_LOAD";
   /**
    * Implementation of {@link #openConnection} for a particular protocol version. Implemented by
    * subclasses of {@link ConnectionFactory}.

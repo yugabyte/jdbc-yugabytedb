@@ -144,6 +144,11 @@ public class PgConnection implements BaseConnection {
 
   private final LruCache<FieldMetadata.Key, FieldMetadata> fieldMetadataCache;
 
+  private static volatile PgConnection controlConnection = null;
+
+  public static void createControlConnection(String url, Properties props) {
+  }
+
   final CachedQuery borrowQuery(String sql) throws SQLException {
     return queryExecutor.borrowQuery(sql);
   }
@@ -677,6 +682,11 @@ public class PgConnection implements BaseConnection {
     releaseTimer();
     queryExecutor.close();
     openStackTrace = null;
+    ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.instance();
+    String host = queryExecutor.getHostSpec().getHost();
+    if (cacm != null && host != null) {
+      cacm.updateConnectionMap(host, -1);
+    }
   }
 
   @Override

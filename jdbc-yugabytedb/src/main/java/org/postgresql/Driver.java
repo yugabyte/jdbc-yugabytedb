@@ -5,6 +5,7 @@
 
 package org.postgresql;
 
+import org.postgresql.jdbc.ClusterAwareConnectionManager;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.util.DriverInfo;
 import org.postgresql.util.ExpressionProperties;
@@ -27,10 +28,7 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,6 +54,8 @@ import java.util.logging.StreamHandler;
  */
 public class Driver implements java.sql.Driver {
 
+  // TODO think on how to initialize this flag
+  private static final boolean LOAD_BALANCE = true;
   private static Driver registeredDriver;
   private static final Logger PARENT_LOGGER = Logger.getLogger("org.postgresql");
   private static final Logger LOGGER = Logger.getLogger("org.postgresql.Driver");
@@ -450,12 +450,84 @@ public class Driver implements java.sql.Driver {
    * thread without enforcing a timeout, regardless of any timeout specified in the properties.
    *
    * @param url the original URL
-   * @param props the parsed/defaulted connection properties
+   * @param properties the parsed/defaulted connection properties
    * @return a new connection
    * @throws SQLException if the connection could not be made
    */
   private static Connection makeConnection(String url, Properties props) throws SQLException {
-    return new PgConnection(hostSpecs(props), user(props), database(props), props, url);
+    boolean loadBalance = props != null &&
+      // TODO: case lower comparison is fine or all cases
+      // need to be handled may be with a regexp it will be better?
+      props.containsKey("load-balance") &&
+      props.getProperty("load-balance").equalsIgnoreCase("true");
+    String pgUrl = url;
+    if (loadBalance || url.contains("&load-balance=")) {
+      // load-balance property is just for the client driver. Strip off the
+      // property from both the url and the property bag so that the server
+      // does not complain.
+      pgUrl = stripLoadProperty(url, props);
+    }
+    if (loadBalance) {
+      return getConnectionBalanced(pgUrl, props);
+    }
+    return new PgConnection(hostSpecs(props), user(props), database(props), props, pgUrl);
+  }
+
+  private static Connection getConnectionBalanced(String pgUrl, Properties props) throws SQLException {
+    ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.getInstance();
+    List<String> failedHosts = new ArrayList<>();
+    Set<String> unreachableHosts = cacm.getUnreachableHosts();
+    failedHosts.addAll(unreachableHosts);
+    String chosenHost = cacm.getLeastLoadedServer(failedHosts);
+    Connection newConnection = null;
+    SQLException firstException = null;
+    if (chosenHost == null) {
+      // Assume first time and don't go for double locking checks and all
+      newConnection = new PgConnection(
+        hostSpecs(props), user(props), database(props), props, pgUrl);
+      cacm.refresh(newConnection);
+      cacm.updateConnectionMap(props.getProperty("PGHOST"), 1);
+      return newConnection;
+    } else {
+      // refresh can also fail on a particular server so try in loop till
+      // options exhausted
+      boolean connectionCreated = false;
+      while (chosenHost != null) {
+        try {
+          props.setProperty("PGHOST", chosenHost);
+          newConnection = new PgConnection(
+            hostSpecs(props), user(props), database(props), props, pgUrl);
+          connectionCreated = true;
+          cacm.refresh(newConnection);
+          cacm.updateConnectionMap(chosenHost, 1);
+          return newConnection;
+        } catch (PSQLException ex) {
+          System.out.println("KN: got exception: " + ex + " and sql state: " + ex.getSQLState());
+          if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
+            // ex.printStackTrace();
+            if (firstException == null) {
+              firstException = ex;
+            }
+            // TODO log exception go to the next one after adding to failed list
+            failedHosts.add(chosenHost);
+            cacm.updateFailedHosts(chosenHost);
+            if (connectionCreated) {
+              // ignore refresh. return the connection after updating map
+              cacm.updateConnectionMap(chosenHost, 1);
+              return newConnection;
+            }
+            chosenHost = cacm.getLeastLoadedServer(failedHosts);
+          }
+        }
+      }
+    }
+    throw firstException;
+  }
+
+  private static String stripLoadProperty(String url, Properties props) {
+    props.remove("load-balance");
+    return url.replace("&load-balance=true", "").replace(
+      "&load-balance=true", "");
   }
 
   /**

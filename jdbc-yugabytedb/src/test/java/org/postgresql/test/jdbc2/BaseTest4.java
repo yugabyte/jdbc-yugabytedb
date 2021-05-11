@@ -16,6 +16,7 @@ import org.junit.Assume;
 import org.junit.Before;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -80,7 +81,7 @@ public class BaseTest4 {
   public void setUp() throws Exception {
     Properties props = new Properties();
     updateProperties(props);
-    con = TestUtil.openDB(props);
+    con = DriverManager.getConnection("jdbc:postgresql://localhost:5433/yugabyte", "yugabyte", "yugabyte");// TestUtil.openDB(props);
     PGConnection pg = con.unwrap(PGConnection.class);
     preferQueryMode = pg == null ? PreferQueryMode.EXTENDED : pg.getPreferQueryMode();
   }
