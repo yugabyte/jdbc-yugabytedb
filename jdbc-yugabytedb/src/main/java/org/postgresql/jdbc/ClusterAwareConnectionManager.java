@@ -53,6 +53,7 @@ public class ClusterAwareConnectionManager {
     return (firstTime || diff > REFRESH_INTERVAL_SECONDS);
   }
 
+
   public synchronized boolean refresh(Connection conn) throws SQLException {
     if (!needsRefresh()) return true;
     // else clear server list
@@ -93,7 +94,7 @@ public class ClusterAwareConnectionManager {
     Integer currentCount = hostToNumConnMap.get(host);
     if (currentCount == null && incDec > 0) {
       hostToNumConnMap.put(host, incDec);
-    } else {
+    } else if (currentCount != null ) {
       hostToNumConnMap.put(host, currentCount + incDec);
     }
   }

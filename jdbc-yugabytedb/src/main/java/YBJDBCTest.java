@@ -26,7 +26,7 @@ public class YBJDBCTest {
         testConnBalance(numConnectionsToBeMade, controlurl);
       }
       ClusterAwareConnectionManager.REFRESH_INTERVAL_SECONDS = 2;
-      testParallelConns(numThreads, controlurl);
+      // testParallelConns(numThreads, controlurl);
     } catch (SQLException throwables) {
       throwables.printStackTrace();
     } catch (InterruptedException e) {
@@ -95,10 +95,10 @@ public class YBJDBCTest {
     System.out.println("Going to sleep...Press enter to wake me up");
     System.in.read();
     System.out.println("woke up");
-    makeMoreConnectionsAndRunBasicQueries("7", controlurl);
+    makeMoreConnectionsAndRunBasicQueries("8", controlurl);
     System.out.println("Going to sleep again...Press enter to wake me up");
     System.in.read();
-    makeMoreConnectionsAndRunBasicQueries("9", controlurl);
+    makeMoreConnectionsAndRunBasicQueries("4", controlurl);
     for (Connection c : allWorkerConns) c.close();
     ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.getInstance();
     cacm.printHostToConnMap();
@@ -157,8 +157,9 @@ public class YBJDBCTest {
     List<Connection> availableConnections = new ArrayList<>();
     for (Connection c : allWorkerConns) {
       String host = ((PgConnection)c).getQueryExecutor().getHostSpec().getHost();
-      if (liveservers.contains(host)) availableConnections.add(c);
+      if (liveservers != null && liveservers.contains(host)) availableConnections.add(c);
     }
+    if (availableConnections.isEmpty()) return;
     for (int i = 0; i < 10; i++) {
       Collections.shuffle(availableConnections);
       Connection conn = availableConnections.get(0);

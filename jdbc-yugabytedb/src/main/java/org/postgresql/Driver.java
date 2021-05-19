@@ -468,7 +468,12 @@ public class Driver implements java.sql.Driver {
       pgUrl = stripLoadProperty(url, props);
     }
     if (loadBalance) {
-      return getConnectionBalanced(pgUrl, props);
+      Connection conn = getConnectionBalanced(pgUrl, props);
+      if (conn != null) {
+        return conn;
+      } else {
+        System.out.println("KN: Got null so falling back to original");
+      }
     }
     return new PgConnection(hostSpecs(props), user(props), database(props), props, pgUrl);
   }
@@ -485,8 +490,16 @@ public class Driver implements java.sql.Driver {
       // Assume first time and don't go for double locking checks and all
       newConnection = new PgConnection(
         hostSpecs(props), user(props), database(props), props, pgUrl);
-      cacm.refresh(newConnection);
-      cacm.updateConnectionMap(props.getProperty("PGHOST"), 1);
+      try {
+        cacm.refresh(newConnection);
+        cacm.updateConnectionMap(props.getProperty("PGHOST"), 1);
+      } catch (PSQLException ex) {
+        if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
+          System.out.println("KN: Returning null");
+          return null;
+        }
+        throw ex;
+      }
       return newConnection;
     } else {
       // refresh can also fail on a particular server so try in loop till
