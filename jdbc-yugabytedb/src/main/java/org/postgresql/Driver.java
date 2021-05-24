@@ -5,7 +5,7 @@
 
 package org.postgresql;
 
-import org.postgresql.jdbc.yugabyte.ClusterAwareConnectionManager;
+import org.postgresql.jdbc.yugabyte.UniformLoadDistributor;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 import org.postgresql.util.DriverInfo;
@@ -476,7 +476,7 @@ public class Driver implements java.sql.Driver {
   }
 
   private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) throws SQLException {
-    ClusterAwareConnectionManager cacm = lbprops.getAppropriateConnectionManager();
+    UniformLoadDistributor cacm = lbprops.getAppropriateConnectionManager();
     Properties props = lbprops.getStrippedProperties();
     String url = lbprops.getStrippedURL();
     Set<String> unreachableHosts = cacm.getUnreachableHosts();

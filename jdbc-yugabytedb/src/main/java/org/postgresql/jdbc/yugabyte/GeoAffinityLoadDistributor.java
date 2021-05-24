@@ -6,11 +6,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 
-public class TargetedServersConnectionManager extends ClusterAwareConnectionManager {
+public class GeoAffinityLoadDistributor extends UniformLoadDistributor {
   private final String placements;
   private final Map<String, Set<String>> allowedPlacements;
 
-  public TargetedServersConnectionManager(String placementvalues) {
+  public GeoAffinityLoadDistributor(String placementvalues) {
     placements = placementvalues;
     allowedPlacements = new HashMap<>();
     populateMap();
@@ -39,7 +39,7 @@ public class TargetedServersConnectionManager extends ClusterAwareConnectionMana
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
     System.out.println("Executing select * from yb_servers()");
-    ResultSet rs = st.executeQuery(ClusterAwareConnectionManager.GET_SERVERS_QUERY);
+    ResultSet rs = st.executeQuery(UniformLoadDistributor.GET_SERVERS_QUERY);
     ArrayList<String> currentServers = new ArrayList<>();
     while (rs.next()) {
       String host = rs.getString("host");

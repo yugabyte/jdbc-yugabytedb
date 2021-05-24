@@ -1,8 +1,7 @@
-import com.datastax.driver.core.Host;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
-import org.postgresql.jdbc.yugabyte.ClusterAwareConnectionManager;
+import org.postgresql.jdbc.yugabyte.UniformLoadDistributor;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 
@@ -36,7 +35,7 @@ public class YBJDBCTest {
         // testConnBalance(numConnectionsToBeMade, controlurl, "simple");
         testConnBalance(numConnectionsToBeMade, controlurl_placement, "datacenter1.rack1");
       }
-      ClusterAwareConnectionManager.REFRESH_INTERVAL_SECONDS = 2;
+      UniformLoadDistributor.REFRESH_INTERVAL_SECONDS = 2;
       // testParallelConns(numThreads, controlurl);
     } catch (SQLException throwables) {
       throwables.printStackTrace();
@@ -76,7 +75,7 @@ public class YBJDBCTest {
         allBorrowed.add(ds.getConnection());
       }
       // runQueriesOnRandomConnections(allBorrowed, "simple");
-      ClusterAwareConnectionManager cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple");
+      UniformLoadDistributor cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple");
       cacm.printHostToConnMap();
     } catch (HikariPool.PoolInitializationException e) {
       e.printStackTrace();
@@ -153,7 +152,7 @@ public class YBJDBCTest {
     @Override
     public void run() {
       int i = 0;
-      ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.getInstance();
+      UniformLoadDistributor cacm = UniformLoadDistributor.getInstance();
       while (i < numItrs) {
         try {
           i++;
@@ -205,7 +204,7 @@ public class YBJDBCTest {
     System.in.read();
     makeMoreConnectionsAndRunBasicQueries("4", controlurl, cacmString);
     for (Connection c : allWorkerConns) c.close();
-    ClusterAwareConnectionManager cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmString);
+    UniformLoadDistributor cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmString);
     cacm.printHostToConnMap();
   }
 

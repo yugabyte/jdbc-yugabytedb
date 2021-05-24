@@ -3,26 +3,26 @@ package org.postgresql.jdbc.yugabyte;
 import java.sql.*;
 import java.util.*;
 
-public class ClusterAwareConnectionManager {
+public class UniformLoadDistributor {
   protected static final String GET_SERVERS_QUERY = "select * from yb_servers()";
-  private static volatile ClusterAwareConnectionManager instance;
+  private static volatile UniformLoadDistributor instance;
   private long lastServerListFetchTime = 0L;
   private volatile ArrayList<String> servers = null;
   Map<String, Integer> hostToNumConnMap = new HashMap<>();
   Set<String> unreachableHosts = new HashSet<>();
 
-  public static ClusterAwareConnectionManager instance() {
+  public static UniformLoadDistributor instance() {
     return instance;
   }
 
-  public ClusterAwareConnectionManager() {
+  public UniformLoadDistributor() {
   }
 
-  public static ClusterAwareConnectionManager getInstance() {
+  public static UniformLoadDistributor getInstance() {
     if (instance == null) {
-      synchronized (ClusterAwareConnectionManager.class) {
+      synchronized (UniformLoadDistributor.class) {
         if (instance == null) {
-          instance = new ClusterAwareConnectionManager();
+          instance = new UniformLoadDistributor();
         }
       }
     }

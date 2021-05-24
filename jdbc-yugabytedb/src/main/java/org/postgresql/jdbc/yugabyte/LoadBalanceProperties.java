@@ -9,7 +9,7 @@ public class LoadBalanceProperties {
    * to be used as KEY and for targeted placements, the targeted property value
    */
   private static final String SIMPLE_LB = "simple";
-  public static Map<String, ClusterAwareConnectionManager> CONNECTION_MANAGER_MAP = new HashMap<>();
+  public static Map<String, UniformLoadDistributor> CONNECTION_MANAGER_MAP = new HashMap<>();
   private static final String LOAD_BALANCE_PROPERTY_KEY = "load-balance";
   private static final String PLACEMENTS_KEYWORD = "placements";
   private static final String PROPERTY_SEP = "&";
@@ -120,11 +120,11 @@ public class LoadBalanceProperties {
     return ybURL;
   }
 
-  public ClusterAwareConnectionManager getAppropriateConnectionManager() {
+  public UniformLoadDistributor getAppropriateConnectionManager() {
     if (!hasLoadBalance) {
       throw new IllegalStateException("This method is expected to be called only when load-balance is true");
     }
-    ClusterAwareConnectionManager cacm = null;
+    UniformLoadDistributor cacm = null;
     if (placements == null) {
       // return base class conn manager.
       cacm = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
@@ -132,7 +132,7 @@ public class LoadBalanceProperties {
         synchronized (CONNECTION_MANAGER_MAP) {
           cacm = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
           if (cacm == null) {
-            cacm = ClusterAwareConnectionManager.getInstance();
+            cacm = UniformLoadDistributor.getInstance();
             CONNECTION_MANAGER_MAP.put(SIMPLE_LB, cacm);
           }
         }
@@ -143,7 +143,7 @@ public class LoadBalanceProperties {
         synchronized (CONNECTION_MANAGER_MAP) {
           cacm = CONNECTION_MANAGER_MAP.get(placements);
           if (cacm == null) {
-            cacm = new TargetedServersConnectionManager(placements);
+            cacm = new GeoAffinityLoadDistributor(placements);
             CONNECTION_MANAGER_MAP.put(placements, cacm);
           }
         }
