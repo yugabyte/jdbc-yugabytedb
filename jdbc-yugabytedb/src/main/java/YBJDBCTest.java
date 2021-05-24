@@ -1,5 +1,10 @@
-import org.postgresql.jdbc.ClusterAwareConnectionManager;
+import com.datastax.driver.core.Host;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.pool.HikariPool;
+import org.postgresql.jdbc.yugabyte.ClusterAwareConnectionManager;
 import org.postgresql.jdbc.PgConnection;
+import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 
 import java.io.IOException;
 import java.sql.*;
@@ -9,6 +14,7 @@ public class YBJDBCTest {
   private static String which_host_query = "select inet_server_port( ), inet_server_addr( )";
 
   public static void main(String[] argv) {
+    // testURLAndPropStripping();
     try {
       System.out.println("TEST");
       String controlhost = argv[0];
@@ -22,8 +28,13 @@ public class YBJDBCTest {
       System.out.println();
       String controlurl = "jdbc:postgresql://" + controlhost
         + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+      testWithHikariPool(controlurl, controlhost, Integer.valueOf(numConnectionsToBeMade));
+      System.exit(0);
+      String controlurl_placement = "jdbc:postgresql://" + controlhost
+        + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:datacenter1.rack1";
       if (!(Integer.valueOf(numThreads) > 0)) {
-        testConnBalance(numConnectionsToBeMade, controlurl);
+        // testConnBalance(numConnectionsToBeMade, controlurl, "simple");
+        testConnBalance(numConnectionsToBeMade, controlurl_placement, "datacenter1.rack1");
       }
       ClusterAwareConnectionManager.REFRESH_INTERVAL_SECONDS = 2;
       // testParallelConns(numThreads, controlurl);
@@ -34,6 +45,100 @@ public class YBJDBCTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
+  }
+
+  private static void testWithHikariPool(String url, String hostName, int numConnections) throws SQLException, InterruptedException {
+    String ds_yb = "org.postgresql.jdbc.yugabyte.YBSimpleDataSource";
+    String ds_pg = "org.postgresql.ds.PGSimpleDataSource";
+    url.replace("&load-balance=true", "");
+    Properties poolProperties = new Properties();
+    // poolProperties.setProperty("dataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
+    poolProperties.setProperty("dataSourceClassName", ds_yb);
+    poolProperties.setProperty("maximumPoolSize", "30");
+    poolProperties.setProperty("connectionTimeout", "1000000");
+    poolProperties.setProperty("autoCommit", "true");
+    poolProperties.setProperty("dataSource.serverName", hostName);
+    poolProperties.setProperty("dataSource.portNumber", "5433");
+    poolProperties.setProperty("dataSource.databaseName", "yugabyte");
+    poolProperties.setProperty("dataSource.user", "yugabyte");
+    poolProperties.setProperty("dataSource.password", "yugabyte");
+    poolProperties.setProperty("dataSource.loadBalance", "true");
+    poolProperties.setProperty("poolName", "loadbalanced");
+    // poolProperties.setProperty("dataSource.loadBalanceHosts", "true");
+
+    HikariConfig config = new HikariConfig(poolProperties);
+    config.setJdbcUrl("");
+    config.validate();
+    HikariDataSource ds = new HikariDataSource(config);
+    List<Connection> allBorrowed = new ArrayList<>();
+    try {
+      for(int i=0; i<numConnections; i++) {
+        allBorrowed.add(ds.getConnection());
+      }
+      // runQueriesOnRandomConnections(allBorrowed, "simple");
+      ClusterAwareConnectionManager cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple");
+      cacm.printHostToConnMap();
+    } catch (HikariPool.PoolInitializationException e) {
+      e.printStackTrace();
+      System.out.println("Cannot start connection pool for host " + hostName + ". " + e.getMessage());
+    } finally {
+      for(int i=0; i<numConnections; i++) {
+        if (i <= allBorrowed.size()) {
+          allBorrowed.get(i).close();
+        }
+      }
+      ds.close();
+    }
+  }
+
+  private static void testURLAndPropStripping() {
+    String controlhost = "127.0.0.1";
+    int controlport = 5433;
+    String controlurl1 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+
+    String controlurl2 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=false";
+
+    String controlurl3 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=false&xyz=false";
+
+    String controlurl4 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:cloud1.reg1.zone1&xyz=false";
+
+    String controlurl5 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:cloud1.reg1.zone1,cloud2.reg2.zone2&xyz=false";
+
+    String controlurl6 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:cloud1.reg1.zone1";
+
+    String controlurl7 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:cloud1.reg1.zone1,cloud2.reg2.zone2";
+
+    String controlurl8 = "jdbc:postgresql://" + controlhost
+      + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte";
+
+    List<String> urls = new ArrayList<>();
+    urls.add(controlurl1);
+    urls.add(controlurl2);
+    urls.add(controlurl3);
+    urls.add(controlurl4);
+    urls.add(controlurl5);
+    urls.add(controlurl6);
+    urls.add(controlurl7);
+    urls.add(controlurl8);
+
+    for (int i=0; i<urls.size(); i++) {
+      System.out.println("------------------------------------------------");
+      System.out.println("URL number " + i);
+      LoadBalanceProperties lbProps = new LoadBalanceProperties(urls.get(i), new Properties());
+      System.out.println("original = " + lbProps.getOriginalURL());
+      System.out.println("YBURL    = " + lbProps.getStrippedURL());
+      System.out.println("Has LB   = " + lbProps.hasLoadBalance());
+      System.out.println("Place    = " + lbProps.getPlacements()) ;
+      System.out.println("------------------------------------------------");
+    }
+    System.exit(0);
   }
 
   static class ConnMakeDropRunSanity implements Runnable {
@@ -90,17 +195,17 @@ public class YBJDBCTest {
   }
 
   private static void testConnBalance(String numConnectionsToBeMade,
-                                      String controlurl) throws SQLException, InterruptedException, IOException {
-    makeMoreConnectionsAndRunBasicQueries(numConnectionsToBeMade, controlurl);
+      String controlurl, String cacmString) throws SQLException, InterruptedException, IOException {
+    makeMoreConnectionsAndRunBasicQueries(numConnectionsToBeMade, controlurl, cacmString);
     System.out.println("Going to sleep...Press enter to wake me up");
     System.in.read();
     System.out.println("woke up");
-    makeMoreConnectionsAndRunBasicQueries("8", controlurl);
+    makeMoreConnectionsAndRunBasicQueries("8", controlurl, cacmString);
     System.out.println("Going to sleep again...Press enter to wake me up");
     System.in.read();
-    makeMoreConnectionsAndRunBasicQueries("4", controlurl);
+    makeMoreConnectionsAndRunBasicQueries("4", controlurl, cacmString);
     for (Connection c : allWorkerConns) c.close();
-    ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.getInstance();
+    ClusterAwareConnectionManager cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmString);
     cacm.printHostToConnMap();
   }
 
@@ -117,7 +222,7 @@ public class YBJDBCTest {
   private static List<Connection> allWorkerConns = new ArrayList<>();
 
   private static void makeMoreConnectionsAndRunBasicQueries(
-    String connectionsToBeMade, String controlUrl) throws SQLException, InterruptedException {
+    String connectionsToBeMade, String controlUrl, String cacmString) throws SQLException, InterruptedException {
     int numConnections = Integer.valueOf(connectionsToBeMade);
     for (int i = 0; i < numConnections; i++) {
       Connection conn = DriverManager.getConnection(controlUrl);
@@ -127,7 +232,7 @@ public class YBJDBCTest {
       runConnQuery(connName, conn);
     }
     printHostToConnectionCounts(allWorkerConns);
-    runQueriesOnRandomConnections(allWorkerConns);
+    runQueriesOnRandomConnections(allWorkerConns, cacmString);
   }
 
   // connection state
@@ -152,8 +257,8 @@ public class YBJDBCTest {
     }
   }
 
-  private static void runQueriesOnRandomConnections(List<Connection> allWorkerConns) throws SQLException {
-    List<String> liveservers = ClusterAwareConnectionManager.instance().getServers();
+  private static void runQueriesOnRandomConnections(List<Connection> allWorkerConns, String cacmstring) throws SQLException {
+    List<String> liveservers = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmstring).getServers();
     List<Connection> availableConnections = new ArrayList<>();
     for (Connection c : allWorkerConns) {
       String host = ((PgConnection)c).getQueryExecutor().getHostSpec().getHost();

@@ -1,11 +1,10 @@
-package org.postgresql.jdbc;
+package org.postgresql.jdbc.yugabyte;
 
 import java.sql.*;
 import java.util.*;
 
 public class ClusterAwareConnectionManager {
-
-  private static final String GET_SERVERS_QUERY = "select * from yb_servers()";
+  protected static final String GET_SERVERS_QUERY = "select * from yb_servers()";
   private static volatile ClusterAwareConnectionManager instance;
   private long lastServerListFetchTime = 0L;
   private volatile ArrayList<String> servers = null;
@@ -13,6 +12,20 @@ public class ClusterAwareConnectionManager {
   Set<String> unreachableHosts = new HashSet<>();
 
   public static ClusterAwareConnectionManager instance() {
+    return instance;
+  }
+
+  public ClusterAwareConnectionManager() {
+  }
+
+  public static ClusterAwareConnectionManager getInstance() {
+    if (instance == null) {
+      synchronized (ClusterAwareConnectionManager.class) {
+        if (instance == null) {
+          instance = new ClusterAwareConnectionManager();
+        }
+      }
+    }
     return instance;
   }
 
@@ -30,20 +43,6 @@ public class ClusterAwareConnectionManager {
     return chosenHost;
   }
 
-  private ClusterAwareConnectionManager() {
-  }
-
-  public static ClusterAwareConnectionManager getInstance() {
-    if (instance == null) {
-      synchronized (ClusterAwareConnectionManager.class) {
-        if (instance == null) {
-          instance = new ClusterAwareConnectionManager();
-        }
-      }
-    }
-    return instance;
-  }
-
   public static int REFRESH_INTERVAL_SECONDS = 300;
 
   public boolean needsRefresh() {
@@ -53,26 +52,25 @@ public class ClusterAwareConnectionManager {
     return (firstTime || diff > REFRESH_INTERVAL_SECONDS);
   }
 
+  protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
+    Statement st = conn.createStatement();
+    System.out.println("Executing select * from yb_servers()");
+    ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
+    ArrayList<String> currentServers = new ArrayList<>();
+    while (rs.next()) {
+      String host = rs.getString("host");
+      currentServers.add(host);
+    }
+    System.out.println("List of servers got: " + currentServers);
+    System.out.println();
+    return currentServers;
+  }
 
   public synchronized boolean refresh(Connection conn) throws SQLException {
     if (!needsRefresh()) return true;
     // else clear server list
     long currTime = System.currentTimeMillis();
-    Statement st = conn.createStatement();
-    System.out.println("Executing select * from yb_servers()");
-    ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
-    if (!rs.next()) {
-      return false;
-    }
-    ArrayList<String> currentServers = new ArrayList<>();
-    String host = rs.getString("host");
-    currentServers.add(host);
-    while (rs.next()) currentServers.add(rs.getString("host"));
-    System.out.println("List of servers got: " + currentServers);
-    System.out.println();
-    if (currentServers.size() > 0) {
-      this.servers = currentServers;
-    }
+    servers = getCurrentServers(conn);
     this.lastServerListFetchTime = currTime;
     unreachableHosts.clear();
     if (!this.servers.isEmpty()) {

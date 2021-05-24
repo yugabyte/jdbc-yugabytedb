@@ -5,8 +5,9 @@
 
 package org.postgresql;
 
-import org.postgresql.jdbc.ClusterAwareConnectionManager;
+import org.postgresql.jdbc.yugabyte.ClusterAwareConnectionManager;
 import org.postgresql.jdbc.PgConnection;
+import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 import org.postgresql.util.DriverInfo;
 import org.postgresql.util.ExpressionProperties;
 import org.postgresql.util.GT;
@@ -454,93 +455,88 @@ public class Driver implements java.sql.Driver {
    * @return a new connection
    * @throws SQLException if the connection could not be made
    */
-  private static Connection makeConnection(String url, Properties props) throws SQLException {
-    boolean loadBalance = props != null &&
-      // TODO: case lower comparison is fine or all cases
-      // need to be handled may be with a regexp it will be better?
-      props.containsKey("load-balance") &&
-      props.getProperty("load-balance").equalsIgnoreCase("true");
-    String pgUrl = url;
-    if (loadBalance || url.contains("&load-balance=")) {
-      // load-balance property is just for the client driver. Strip off the
-      // property from both the url and the property bag so that the server
-      // does not complain.
-      pgUrl = stripLoadProperty(url, props);
-    }
-    if (loadBalance) {
-      Connection conn = getConnectionBalanced(pgUrl, props);
+  private static Connection makeConnection(String url, Properties properties) throws SQLException {
+    // url = url.replace("&loadBalanceHosts=true", "&load-balance=true");
+    // properties.remove("loadBalanceHosts");
+    // properties.put("load-balance", "true");
+    LoadBalanceProperties lbprops = new LoadBalanceProperties(url, properties);
+    if (lbprops.hasLoadBalance()) {
+      Connection conn = getConnectionBalanced(lbprops);
       if (conn != null) {
         return conn;
       } else {
-        System.out.println("KN: Got null so falling back to original");
+        LOGGER.log(Level.WARNING, "Failed to apply load balance. Trying normal connection");
+        // but remember to use stripped url and props
+        url = lbprops.getStrippedURL();
+        properties = lbprops.getStrippedProperties();
       }
     }
-    return new PgConnection(hostSpecs(props), user(props), database(props), props, pgUrl);
+    // url = url.replace("&loadBalanceHosts", "");
+    return new PgConnection(hostSpecs(properties), user(properties), database(properties), properties, url);
   }
 
-  private static Connection getConnectionBalanced(String pgUrl, Properties props) throws SQLException {
-    ClusterAwareConnectionManager cacm = ClusterAwareConnectionManager.getInstance();
-    List<String> failedHosts = new ArrayList<>();
+  private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) throws SQLException {
+    ClusterAwareConnectionManager cacm = lbprops.getAppropriateConnectionManager();
+    Properties props = lbprops.getStrippedProperties();
+    String url = lbprops.getStrippedURL();
     Set<String> unreachableHosts = cacm.getUnreachableHosts();
-    failedHosts.addAll(unreachableHosts);
+    List<String> failedHosts = new ArrayList<>(unreachableHosts);
     String chosenHost = cacm.getLeastLoadedServer(failedHosts);
     Connection newConnection = null;
+    Connection controlConnection = null;
     SQLException firstException = null;
     if (chosenHost == null) {
       // Assume first time and don't go for double locking checks and all
-      newConnection = new PgConnection(
-        hostSpecs(props), user(props), database(props), props, pgUrl);
+//      controlConnection = new PgConnection(
+//        hostSpecs(props), user(props), database(props), props, url);
+      controlConnection = new PgConnection(
+        hostSpecs(lbprops.getOriginalProperties()), user(lbprops.getOriginalProperties()), database(lbprops.getOriginalProperties()), props, url);
       try {
-        cacm.refresh(newConnection);
-        cacm.updateConnectionMap(props.getProperty("PGHOST"), 1);
+        cacm.refresh(controlConnection);
+        controlConnection.close();
       } catch (PSQLException ex) {
         if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
-          System.out.println("KN: Returning null");
           return null;
         }
         throw ex;
       }
-      return newConnection;
-    } else {
-      // refresh can also fail on a particular server so try in loop till
-      // options exhausted
-      boolean connectionCreated = false;
-      while (chosenHost != null) {
-        try {
-          props.setProperty("PGHOST", chosenHost);
-          newConnection = new PgConnection(
-            hostSpecs(props), user(props), database(props), props, pgUrl);
-          connectionCreated = true;
-          cacm.refresh(newConnection);
-          cacm.updateConnectionMap(chosenHost, 1);
-          return newConnection;
-        } catch (PSQLException ex) {
-          System.out.println("KN: got exception: " + ex + " and sql state: " + ex.getSQLState());
-          if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
-            // ex.printStackTrace();
-            if (firstException == null) {
-              firstException = ex;
-            }
-            // TODO log exception go to the next one after adding to failed list
-            failedHosts.add(chosenHost);
-            cacm.updateFailedHosts(chosenHost);
-            if (connectionCreated) {
-              // ignore refresh. return the connection after updating map
-              cacm.updateConnectionMap(chosenHost, 1);
-              return newConnection;
-            }
-            chosenHost = cacm.getLeastLoadedServer(failedHosts);
+    }
+    chosenHost = cacm.getLeastLoadedServer(failedHosts);
+    if (chosenHost == null) {
+      return null;
+    }
+    // refresh can also fail on a particular server so try in loop till
+    // options exhausted
+    boolean connectionCreated = false;
+    while (chosenHost != null) {
+      try {
+        props.setProperty("PGHOST", chosenHost);
+//        newConnection = new PgConnection(
+//          hostSpecs(props), user(props), database(props), props, url);
+        newConnection = new PgConnection(
+          hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
+        connectionCreated = true;
+        cacm.refresh(newConnection);
+        cacm.updateConnectionMap(chosenHost, 1);
+        return newConnection;
+      } catch (PSQLException ex) {
+        if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
+          if (firstException == null) {
+            firstException = ex;
           }
+          // TODO log exception go to the next one after adding to failed list
+          failedHosts.add(chosenHost);
+          cacm.updateFailedHosts(chosenHost);
+          if (connectionCreated) {
+            // ignore refresh. return the connection after updating map
+            cacm.updateConnectionMap(chosenHost, 1);
+            return newConnection;
+          }
+          chosenHost = cacm.getLeastLoadedServer(failedHosts);
         }
       }
     }
     throw firstException;
-  }
-
-  private static String stripLoadProperty(String url, Properties props) {
-    props.remove("load-balance");
-    return url.replace("&load-balance=true", "").replace(
-      "&load-balance=true", "");
   }
 
   /**
