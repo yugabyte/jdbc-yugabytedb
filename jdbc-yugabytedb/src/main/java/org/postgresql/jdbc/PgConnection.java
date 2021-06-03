@@ -27,7 +27,7 @@ import org.postgresql.core.TypeInfo;
 import org.postgresql.core.Utils;
 import org.postgresql.core.Version;
 import org.postgresql.fastpath.Fastpath;
-import org.postgresql.jdbc.yugabyte.UniformLoadDistributor;
+import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
 import org.postgresql.largeobject.LargeObjectManager;
 import org.postgresql.replication.PGReplicationConnection;
 import org.postgresql.replication.PGReplicationConnectionImpl;
@@ -146,6 +146,7 @@ public class PgConnection implements BaseConnection {
   private final LruCache<FieldMetadata.Key, FieldMetadata> fieldMetadataCache;
 
   private static volatile PgConnection controlConnection = null;
+  private ClusterAwareLoadBalancer loadBalancer;
 
   public static void createControlConnection(String url, Properties props) {
   }
@@ -683,11 +684,14 @@ public class PgConnection implements BaseConnection {
     releaseTimer();
     queryExecutor.close();
     openStackTrace = null;
-    UniformLoadDistributor cacm = UniformLoadDistributor.instance();
     String host = queryExecutor.getHostSpec().getHost();
-    if (cacm != null && host != null) {
-      cacm.updateConnectionMap(host, -1);
+    if (loadBalancer != null && host != null) {
+      loadBalancer.updateConnectionMap(host, -1);
     }
+  }
+
+  public void setLoadBalancer(ClusterAwareLoadBalancer lb) {
+    this.loadBalancer = lb;
   }
 
   @Override

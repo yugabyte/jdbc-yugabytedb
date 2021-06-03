@@ -5,15 +5,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
+import java.util.logging.Level;
 
-public class GeoAffinityLoadDistributor extends UniformLoadDistributor {
+public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
   private final String placements;
   private final Map<String, Set<String>> allowedPlacements;
 
-  public GeoAffinityLoadDistributor(String placementvalues) {
+  public TopologyAwareLoadBalancer(String placementvalues) {
     placements = placementvalues;
     allowedPlacements = new HashMap<>();
     populateMap();
+  }
+
+  protected String loadBalancingNodes() {
+    return placements;
   }
 
   private void populateMap() {
@@ -38,8 +43,8 @@ public class GeoAffinityLoadDistributor extends UniformLoadDistributor {
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
-    System.out.println("Executing select * from yb_servers()");
-    ResultSet rs = st.executeQuery(UniformLoadDistributor.GET_SERVERS_QUERY);
+    LOGGER.log(Level.INFO, "Getting the list of servers in: " + placements);
+    ResultSet rs = st.executeQuery(ClusterAwareLoadBalancer.GET_SERVERS_QUERY);
     ArrayList<String> currentServers = new ArrayList<>();
     while (rs.next()) {
       String host = rs.getString("host");
@@ -50,6 +55,7 @@ public class GeoAffinityLoadDistributor extends UniformLoadDistributor {
         currentServers.add(host);
       }
     }
+    LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
     System.out.println("List of servers got: " + currentServers);
     System.out.println();
     return currentServers;

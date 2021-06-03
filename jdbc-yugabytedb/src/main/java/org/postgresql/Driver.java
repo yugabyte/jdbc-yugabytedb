@@ -5,7 +5,7 @@
 
 package org.postgresql;
 
-import org.postgresql.jdbc.yugabyte.UniformLoadDistributor;
+import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 import org.postgresql.util.DriverInfo;
@@ -456,9 +456,6 @@ public class Driver implements java.sql.Driver {
    * @throws SQLException if the connection could not be made
    */
   private static Connection makeConnection(String url, Properties properties) throws SQLException {
-    // url = url.replace("&loadBalanceHosts=true", "&load-balance=true");
-    // properties.remove("loadBalanceHosts");
-    // properties.put("load-balance", "true");
     LoadBalanceProperties lbprops = new LoadBalanceProperties(url, properties);
     if (lbprops.hasLoadBalance()) {
       Connection conn = getConnectionBalanced(lbprops);
@@ -471,28 +468,27 @@ public class Driver implements java.sql.Driver {
         properties = lbprops.getStrippedProperties();
       }
     }
-    // url = url.replace("&loadBalanceHosts", "");
     return new PgConnection(hostSpecs(properties), user(properties), database(properties), properties, url);
   }
 
   private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) throws SQLException {
-    UniformLoadDistributor cacm = lbprops.getAppropriateConnectionManager();
+    ClusterAwareLoadBalancer loadBalancer = lbprops.getAppropriateLoadBalancer();
     Properties props = lbprops.getStrippedProperties();
     String url = lbprops.getStrippedURL();
-    Set<String> unreachableHosts = cacm.getUnreachableHosts();
+    Set<String> unreachableHosts = loadBalancer.getUnreachableHosts();
     List<String> failedHosts = new ArrayList<>(unreachableHosts);
-    String chosenHost = cacm.getLeastLoadedServer(failedHosts);
+    String chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     Connection newConnection = null;
     Connection controlConnection = null;
     SQLException firstException = null;
     if (chosenHost == null) {
-      // Assume first time and don't go for double locking checks and all
-//      controlConnection = new PgConnection(
-//        hostSpecs(props), user(props), database(props), props, url);
+      HostSpec[] hspec = hostSpecs(lbprops.getOriginalProperties());
       controlConnection = new PgConnection(
-        hostSpecs(lbprops.getOriginalProperties()), user(lbprops.getOriginalProperties()), database(lbprops.getOriginalProperties()), props, url);
+        hspec, user(lbprops.getOriginalProperties()),
+          database(lbprops.getOriginalProperties()), props, url);
       try {
-        cacm.refresh(controlConnection);
+        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
+        loadBalancer.refresh(controlConnection);
         controlConnection.close();
       } catch (PSQLException ex) {
         if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
@@ -501,7 +497,7 @@ public class Driver implements java.sql.Driver {
         throw ex;
       }
     }
-    chosenHost = cacm.getLeastLoadedServer(failedHosts);
+    chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     if (chosenHost == null) {
       return null;
     }
@@ -511,13 +507,12 @@ public class Driver implements java.sql.Driver {
     while (chosenHost != null) {
       try {
         props.setProperty("PGHOST", chosenHost);
-//        newConnection = new PgConnection(
-//          hostSpecs(props), user(props), database(props), props, url);
         newConnection = new PgConnection(
           hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
+        ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
         connectionCreated = true;
-        cacm.refresh(newConnection);
-        cacm.updateConnectionMap(chosenHost, 1);
+        loadBalancer.refresh(newConnection);
+        loadBalancer.updateConnectionMap(chosenHost, 1);
         return newConnection;
       } catch (PSQLException ex) {
         if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
@@ -525,14 +520,16 @@ public class Driver implements java.sql.Driver {
             firstException = ex;
           }
           // TODO log exception go to the next one after adding to failed list
+          LOGGER.log(Level.WARNING,
+            "couldn't connect to {0}, adding to failed host list", chosenHost);
           failedHosts.add(chosenHost);
-          cacm.updateFailedHosts(chosenHost);
+          loadBalancer.updateFailedHosts(chosenHost);
           if (connectionCreated) {
             // ignore refresh. return the connection after updating map
-            cacm.updateConnectionMap(chosenHost, 1);
+            loadBalancer.updateConnectionMap(chosenHost, 1);
             return newConnection;
           }
-          chosenHost = cacm.getLeastLoadedServer(failedHosts);
+          chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
         }
       }
     }

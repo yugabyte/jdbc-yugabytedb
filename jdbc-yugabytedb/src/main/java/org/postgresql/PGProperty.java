@@ -421,6 +421,9 @@ public enum PGProperty {
   YB_LOAD_BALANCE("load-balance", "false",
     "Load Balance connections across multiple tservers"),
 
+  YB_TOPOLOGY_KEYS("topology-keys", "",
+    "Load Balance connections only in the given topolgies"),
+
   /**
    * <p>Connection parameter passed in the startup message. This parameter accepts two values; "true"
    * and "database". Passing "true" tells the backend to go into walsender mode, wherein a small set

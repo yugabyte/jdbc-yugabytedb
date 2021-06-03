@@ -3,19 +3,21 @@ package org.postgresql.jdbc.yugabyte;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class LoadBalanceProperties {
-  /* Placement info to ConnectionManager Mapping. For simple load-balance SIMPLE_LB
-   * to be used as KEY and for targeted placements, the targeted property value
-   */
   private static final String SIMPLE_LB = "simple";
-  public static Map<String, UniformLoadDistributor> CONNECTION_MANAGER_MAP = new HashMap<>();
   private static final String LOAD_BALANCE_PROPERTY_KEY = "load-balance";
-  private static final String PLACEMENTS_KEYWORD = "placements";
+  private static final String TOPOLOGY_AWARE_PROPERTY_KEY = "topology-keys";
   private static final String PROPERTY_SEP = "&";
-  private static final String PLACEMENT_VALUE_SEP = ",";
-  private static final String PLACEMENT_KEY_SEP = ":";
   private static final String EQUALS = "=";
+
+  private static final Logger LOGGER = Logger.getLogger("org.postgresql.Driver");
+  /* Topology/Cluster aware key to load balancer mapping. For uniform policy
+   load-balance 'simple' to be used as KEY and for targeted topologies,
+    <placements> value specified will be used as key
+   */
+  public static final Map<String, ClusterAwareLoadBalancer> CONNECTION_MANAGER_MAP = new HashMap<>();
 
   private final String originalUrl;
   private final Properties originalProperties;
@@ -29,6 +31,7 @@ public class LoadBalanceProperties {
     originalProperties = origProperties;
     strippedProperties = (Properties) origProperties.clone();
     strippedProperties.remove(LOAD_BALANCE_PROPERTY_KEY);
+    strippedProperties.remove(TOPOLOGY_AWARE_PROPERTY_KEY);
     ybURL = processURLAndProperties();
   }
 
@@ -36,64 +39,40 @@ public class LoadBalanceProperties {
     String[] url_parts = this.originalUrl.split(PROPERTY_SEP);
     StringBuilder sb = new StringBuilder();
     String load_balancer_key = LOAD_BALANCE_PROPERTY_KEY + EQUALS;
+    String topology_key = TOPOLOGY_AWARE_PROPERTY_KEY + EQUALS;
     for (String part : url_parts) {
       if (sb.length() == 0) {
         sb.append(part);
         continue;
       }
       if (part.startsWith(load_balancer_key)) {
-        String load_balancer_with_placements = load_balancer_key + PLACEMENTS_KEYWORD + PLACEMENT_KEY_SEP;
-        if (part.startsWith(load_balancer_with_placements)) {
-          String[] placement_parts = part.split(PLACEMENT_KEY_SEP);
-          if (placement_parts == null || placement_parts.length != 2) {
-            throw new IllegalArgumentException("load balance part malformed: " + part);
-          }
-          if (this.placements == null) {
-            this.placements = placement_parts[1];
-            this.hasLoadBalance = true;
-          } else {
-            throw new IllegalArgumentException("placement load balance property can be specified only once");
-          }
-        } else {
-          String[] lb_parts = part.split(EQUALS);
-          if (lb_parts == null || lb_parts.length != 2) {
-            throw new IllegalArgumentException("load balance part malformed: " + part);
-          }
-          processSimpleLoadBalanceProp(lb_parts[1]);
+        String[] lb_parts = part.split(EQUALS);
+        String propValue = lb_parts[1];
+        if (propValue.equalsIgnoreCase("true")) {
+          this.hasLoadBalance = true;
         }
+      } else if (part.startsWith(topology_key)) {
+        String[] lb_parts = part.split(EQUALS);
+        placements = lb_parts[1];
       } else {
         sb.append('&');
         sb.append(part);
       }
     }
     // Check properties bag also
-    if (placements == null && originalProperties != null && originalProperties.containsKey(LOAD_BALANCE_PROPERTY_KEY)) {
-      String propValue = originalProperties.getProperty(LOAD_BALANCE_PROPERTY_KEY);
-      if (propValue.startsWith(PLACEMENTS_KEYWORD)) {
-        if (placements != null) {
-          throw new IllegalArgumentException("load balance property already specified in url");
+    if (originalProperties != null) {
+      if (originalProperties.containsKey(LOAD_BALANCE_PROPERTY_KEY)) {
+        String propValue = originalProperties.getProperty(LOAD_BALANCE_PROPERTY_KEY);
+        if (propValue.equals("true")) {
+          hasLoadBalance = true;
         }
-        String[] parts = propValue.split(":");
-        if (parts == null || parts.length != 2) {
-          throw new IllegalArgumentException("load balance placement value in property bag malformed");
-        }
-        hasLoadBalance = true;
-        placements = parts[1];
-      } else {
-        processSimpleLoadBalanceProp(propValue);
+      }
+      if (originalProperties.containsKey(TOPOLOGY_AWARE_PROPERTY_KEY)) {
+        String propValue = originalProperties.getProperty(TOPOLOGY_AWARE_PROPERTY_KEY);
+        placements = propValue;
       }
     }
     return sb.toString();
-  }
-
-  private void processSimpleLoadBalanceProp(String propValue) {
-    if (propValue.equalsIgnoreCase("true")) {
-      this.hasLoadBalance = true;
-    } else if (!propValue.equalsIgnoreCase("false")) {
-      throw new IllegalArgumentException(
-        "load balance part without placement only expects true or false as values"
-      );
-    }
   }
 
   public String getOriginalURL() {
@@ -120,35 +99,36 @@ public class LoadBalanceProperties {
     return ybURL;
   }
 
-  public UniformLoadDistributor getAppropriateConnectionManager() {
+  public ClusterAwareLoadBalancer getAppropriateLoadBalancer() {
     if (!hasLoadBalance) {
-      throw new IllegalStateException("This method is expected to be called only when load-balance is true");
+      throw new IllegalStateException(
+        "This method is expected to be called only when load-balance is true");
     }
-    UniformLoadDistributor cacm = null;
+    ClusterAwareLoadBalancer ld = null;
     if (placements == null) {
       // return base class conn manager.
-      cacm = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
-      if (cacm == null) {
+      ld = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
+      if (ld == null) {
         synchronized (CONNECTION_MANAGER_MAP) {
-          cacm = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
-          if (cacm == null) {
-            cacm = UniformLoadDistributor.getInstance();
-            CONNECTION_MANAGER_MAP.put(SIMPLE_LB, cacm);
+          ld = CONNECTION_MANAGER_MAP.get(SIMPLE_LB);
+          if (ld == null) {
+            ld = ClusterAwareLoadBalancer.getInstance();
+            CONNECTION_MANAGER_MAP.put(SIMPLE_LB, ld);
           }
         }
       }
     } else {
-      cacm = CONNECTION_MANAGER_MAP.get(placements);
-      if (cacm == null) {
+      ld = CONNECTION_MANAGER_MAP.get(placements);
+      if (ld == null) {
         synchronized (CONNECTION_MANAGER_MAP) {
-          cacm = CONNECTION_MANAGER_MAP.get(placements);
-          if (cacm == null) {
-            cacm = new GeoAffinityLoadDistributor(placements);
-            CONNECTION_MANAGER_MAP.put(placements, cacm);
+          ld = CONNECTION_MANAGER_MAP.get(placements);
+          if (ld == null) {
+            ld = new TopologyAwareLoadBalancer(placements);
+            CONNECTION_MANAGER_MAP.put(placements, ld);
           }
         }
       }
     }
-    return cacm;
+    return ld;
   }
 }

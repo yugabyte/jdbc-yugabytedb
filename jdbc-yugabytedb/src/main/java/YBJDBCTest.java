@@ -1,7 +1,7 @@
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
-import org.postgresql.jdbc.yugabyte.UniformLoadDistributor;
+import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
 import org.postgresql.jdbc.PgConnection;
 import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
 
@@ -12,8 +12,31 @@ import java.util.*;
 public class YBJDBCTest {
   private static String which_host_query = "select inet_server_port( ), inet_server_addr( )";
 
+//  static Logger logger = Logger.getLogger("org.postgresql.Driver");
+//
+//  private static void testIP() {
+//    try {
+//      String loggerproperties =
+//        "handlers = java.util.logging.ConsoleHandler\n" +
+//        "java.util.logging.ConsoleHandler.level = FINE\n" +
+//        "java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter\n";
+//      InputStream stream = new ByteArrayInputStream(loggerproperties.getBytes(StandardCharsets.UTF_8));
+//      LogManager.getLogManager().readConfiguration(stream);
+//      logger.addHandler(new ConsoleHandler());
+//      logger.log(Level.INFO, "Hello world");
+//      // Properties props = new Properties();
+//      // props.load(stream);
+//      // System.out.println(props);
+//    } catch (Exception e) {
+//      e.printStackTrace();
+//    }
+//  }
+
   public static void main(String[] argv) {
     // testURLAndPropStripping();
+    // testIP();
+    //
+    // System.exit(0);
     try {
       System.out.println("TEST");
       String controlhost = argv[0];
@@ -27,15 +50,15 @@ public class YBJDBCTest {
       System.out.println();
       String controlurl = "jdbc:postgresql://" + controlhost
         + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
-      testWithHikariPool(controlurl, controlhost, Integer.valueOf(numConnectionsToBeMade));
-      System.exit(0);
+      // testWithHikariPool(controlurl, controlhost, Integer.valueOf(numConnectionsToBeMade));
+      // System.exit(0);
       String controlurl_placement = "jdbc:postgresql://" + controlhost
-        + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=placements:datacenter1.rack1";
+        + ":" + controlport + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=datacenter1.rack1";
       if (!(Integer.valueOf(numThreads) > 0)) {
-        // testConnBalance(numConnectionsToBeMade, controlurl, "simple");
-        testConnBalance(numConnectionsToBeMade, controlurl_placement, "datacenter1.rack1");
+        testConnBalance(numConnectionsToBeMade, controlurl, "simple");
+        // testConnBalance(numConnectionsToBeMade, controlurl_placement, "datacenter1.rack1");
       }
-      UniformLoadDistributor.REFRESH_INTERVAL_SECONDS = 2;
+      ClusterAwareLoadBalancer.REFRESH_LIST_SECONDS = 2;
       // testParallelConns(numThreads, controlurl);
     } catch (SQLException throwables) {
       throwables.printStackTrace();
@@ -63,10 +86,8 @@ public class YBJDBCTest {
     poolProperties.setProperty("dataSource.password", "yugabyte");
     poolProperties.setProperty("dataSource.loadBalance", "true");
     poolProperties.setProperty("poolName", "loadbalanced");
-    // poolProperties.setProperty("dataSource.loadBalanceHosts", "true");
 
     HikariConfig config = new HikariConfig(poolProperties);
-    config.setJdbcUrl("");
     config.validate();
     HikariDataSource ds = new HikariDataSource(config);
     List<Connection> allBorrowed = new ArrayList<>();
@@ -75,7 +96,7 @@ public class YBJDBCTest {
         allBorrowed.add(ds.getConnection());
       }
       // runQueriesOnRandomConnections(allBorrowed, "simple");
-      UniformLoadDistributor cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple");
+      ClusterAwareLoadBalancer cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple");
       cacm.printHostToConnMap();
     } catch (HikariPool.PoolInitializationException e) {
       e.printStackTrace();
@@ -152,7 +173,7 @@ public class YBJDBCTest {
     @Override
     public void run() {
       int i = 0;
-      UniformLoadDistributor cacm = UniformLoadDistributor.getInstance();
+      ClusterAwareLoadBalancer cacm = ClusterAwareLoadBalancer.getInstance();
       while (i < numItrs) {
         try {
           i++;
@@ -204,7 +225,7 @@ public class YBJDBCTest {
     System.in.read();
     makeMoreConnectionsAndRunBasicQueries("4", controlurl, cacmString);
     for (Connection c : allWorkerConns) c.close();
-    UniformLoadDistributor cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmString);
+    ClusterAwareLoadBalancer cacm = LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(cacmString);
     cacm.printHostToConnMap();
   }
 
