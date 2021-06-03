@@ -86,7 +86,6 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
       Properties info, SocketFactory socketFactory, HostSpec hostSpec,
       SslMode sslMode)
       throws SQLException, IOException {
-    // int connectTimeout = 200 * PGProperty.CONNECT_TIMEOUT.getInt(info) * 1000;
     int connectTimeout = PGProperty.CONNECT_TIMEOUT.getInt(info) * 1000;
 
     PGStream newStream = new PGStream(socketFactory, hostSpec, connectTimeout);
@@ -136,8 +135,6 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
     }
 
     List<String[]> paramList = getParametersForStartup(user, database, info);
-    // add getserverload
-    // paramList.add(new String[]{ConnectionFactory.REQUEST_SERVER_LOAD, "0"});
     sendStartupPacket(newStream, paramList);
 
     // Do authentication (until AuthenticationOk).
@@ -344,11 +341,6 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
     }
 
     String options = PGProperty.OPTIONS.get(info);
-//    if (options != null) {
-//      options = options + " -c load_balance=true";
-//    } else {
-//      options = " -c load_balance=true";
-//    }
     if (options != null) {
       paramList.add(new String[]{"options", options});
     }

@@ -1,6 +1,6 @@
 package com.yugabyte.examples;
 
-import com.yugabyte.ysql.YBClusterAwareDataSource;
+import com.yugabyte.ysql.YBSimpleDataSource;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -41,7 +41,7 @@ public class Main {
     }
 
     private static YBClusterAwareDataSource getDataSource() {
-        YBClusterAwareDataSource ds = new YBClusterAwareDataSource();
+      YBClusterAwareDataSource ds = new YBSimpleDataSource();
 
         // Configure the data source. Note: Most settings below are the default values and are set
         // here for illustration purposes only.

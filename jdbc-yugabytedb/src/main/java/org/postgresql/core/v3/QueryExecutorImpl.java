@@ -10,7 +10,28 @@ import org.postgresql.PGProperty;
 import org.postgresql.copy.CopyIn;
 import org.postgresql.copy.CopyOperation;
 import org.postgresql.copy.CopyOut;
-import org.postgresql.core.*;
+import org.postgresql.core.CommandCompleteParser;
+import org.postgresql.core.Encoding;
+import org.postgresql.core.EncodingPredictor;
+import org.postgresql.core.Field;
+import org.postgresql.core.NativeQuery;
+import org.postgresql.core.Oid;
+import org.postgresql.core.PGBindException;
+import org.postgresql.core.PGStream;
+import org.postgresql.core.ParameterList;
+import org.postgresql.core.Parser;
+import org.postgresql.core.Query;
+import org.postgresql.core.QueryExecutor;
+import org.postgresql.core.QueryExecutorBase;
+import org.postgresql.core.ReplicationProtocol;
+import org.postgresql.core.ResultCursor;
+import org.postgresql.core.ResultHandler;
+import org.postgresql.core.ResultHandlerBase;
+import org.postgresql.core.ResultHandlerDelegate;
+import org.postgresql.core.SqlCommand;
+import org.postgresql.core.SqlCommandType;
+import org.postgresql.core.TransactionState;
+import org.postgresql.core.Utils;
 import org.postgresql.core.v3.replication.V3ReplicationProtocol;
 import org.postgresql.jdbc.AutoSave;
 import org.postgresql.jdbc.BatchResultHandler;
@@ -110,7 +131,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
     this.allowEncodingChanges = PGProperty.ALLOW_ENCODING_CHANGES.getBoolean(info);
     this.cleanupSavePoints = PGProperty.CLEANUP_SAVEPOINTS.getBoolean(info);
     this.replicationProtocol = new V3ReplicationProtocol(this, pgStream);
-    readStartupMessages(info);
+    readStartupMessages();
   }
 
   @Override
@@ -2500,15 +2521,10 @@ public class QueryExecutorImpl extends QueryExecutorBase {
   }
 
   private void receiveRFQ() throws IOException {
-    receiveRFQ(null);
-  }
+    if (pgStream.receiveInteger4() != 5) {
+      throw new IOException("unexpected length of ReadyForQuery message");
+    }
 
-  private void receiveRFQ(Properties props) throws IOException {
-    int len = pgStream.receiveInteger4();
-//    if ( len != 5) {
-//      throw new IOException("unexpected length of ReadyForQuery message");
-//    }
-    // System.out.println("KN: len = " + len);
     char tStatus = (char) pgStream.receiveChar();
     if (LOGGER.isLoggable(Level.FINEST)) {
       LOGGER.log(Level.FINEST, " <=BE ReadyForQuery({0})", tStatus);
@@ -2519,14 +2535,6 @@ public class QueryExecutorImpl extends QueryExecutorBase {
       case 'I':
         transactionFailCause = null;
         setTransactionState(TransactionState.IDLE);
-        // System.out.println("KN: Received server ");
-        // int len = pgStream.receiveInteger4();
-        // String ret = pgStream.receiveString();
-        // System.out.println("KN: ret = " + ret);
-        // read server load
-//        if (props != null && !props.getProperty(ConnectionFactory.REQUEST_SERVER_LOAD).isEmpty()) {
-//          // read server load information
-//        }
         break;
       case 'T':
         transactionFailCause = null;
@@ -2548,15 +2556,11 @@ public class QueryExecutorImpl extends QueryExecutorBase {
   }
 
   public void readStartupMessages() throws IOException, SQLException {
-    readStartupMessages(null);
-  }
-
-  public void readStartupMessages(Properties info) throws IOException, SQLException {
     for (int i = 0; i < 1000; i++) {
       int beresp = pgStream.receiveChar();
       switch (beresp) {
         case 'Z':
-          receiveRFQ(info);
+          receiveRFQ();
           // Ready For Query; we're done.
           return;
 
