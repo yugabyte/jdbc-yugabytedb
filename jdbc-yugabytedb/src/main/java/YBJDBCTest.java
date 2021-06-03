@@ -1,9 +1,9 @@
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
-import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import org.postgresql.jdbc.PgConnection;
-import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
+import com.yugabyte.ysql.LoadBalanceProperties;
 
 import java.io.IOException;
 import java.sql.*;
@@ -70,7 +70,7 @@ public class YBJDBCTest {
   }
 
   private static void testWithHikariPool(String url, String hostName, int numConnections) throws SQLException, InterruptedException {
-    String ds_yb = "org.postgresql.jdbc.yugabyte.YBSimpleDataSource";
+    String ds_yb = "com.yugabyte.ysql.YBSimpleDataSource";
     String ds_pg = "org.postgresql.ds.PGSimpleDataSource";
     url.replace("&load-balance=true", "");
     Properties poolProperties = new Properties();

@@ -27,7 +27,7 @@ import org.postgresql.core.TypeInfo;
 import org.postgresql.core.Utils;
 import org.postgresql.core.Version;
 import org.postgresql.fastpath.Fastpath;
-import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import org.postgresql.largeobject.LargeObjectManager;
 import org.postgresql.replication.PGReplicationConnection;
 import org.postgresql.replication.PGReplicationConnectionImpl;

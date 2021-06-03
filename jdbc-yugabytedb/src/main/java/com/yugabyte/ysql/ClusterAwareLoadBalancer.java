@@ -1,4 +1,4 @@
-package org.postgresql.jdbc.yugabyte;
+package com.yugabyte.ysql;
 
 import java.sql.*;
 import java.util.*;

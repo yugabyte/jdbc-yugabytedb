@@ -1,4 +1,4 @@
-package org.postgresql.jdbc.yugabyte;
+package com.yugabyte.ysql;
 
 import java.util.HashMap;
 import java.util.Map;

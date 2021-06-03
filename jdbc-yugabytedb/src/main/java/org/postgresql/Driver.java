@@ -5,9 +5,9 @@
 
 package org.postgresql;
 
-import org.postgresql.jdbc.yugabyte.ClusterAwareLoadBalancer;
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import org.postgresql.jdbc.PgConnection;
-import org.postgresql.jdbc.yugabyte.LoadBalanceProperties;
+import com.yugabyte.ysql.LoadBalanceProperties;
 import org.postgresql.util.DriverInfo;
 import org.postgresql.util.ExpressionProperties;
 import org.postgresql.util.GT;

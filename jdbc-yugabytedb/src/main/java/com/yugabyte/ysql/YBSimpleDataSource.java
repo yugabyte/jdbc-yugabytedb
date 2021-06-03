@@ -1,4 +1,4 @@
-package org.postgresql.jdbc.yugabyte;
+package com.yugabyte.ysql;
 
 import org.postgresql.PGProperty;
 import org.postgresql.ds.PGSimpleDataSource;

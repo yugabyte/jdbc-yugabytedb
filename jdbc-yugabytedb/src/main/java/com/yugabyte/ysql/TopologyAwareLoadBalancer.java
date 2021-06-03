@@ -1,4 +1,6 @@
-package org.postgresql.jdbc.yugabyte;
+package com.yugabyte.ysql;
+
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
