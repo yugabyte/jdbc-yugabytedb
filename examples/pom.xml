@@ -11,7 +11,7 @@
     <dependency>
       <groupId>com.yugabyte</groupId>
       <artifactId>jdbc-yugabytedb</artifactId>
-      <version>42.2.7-yb-3</version>
+      <version>42.2.7-yb-5-SNAPSHOT</version>
     </dependency>
 
   </dependencies>

@@ -1,6 +1,6 @@
 package com.yugabyte.examples;
 
-import com.yugabyte.ysql.YBSimpleDataSource;
+import com.yugabyte.ysql.YBClusterAwareDataSource;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -17,10 +17,10 @@ public class Main {
         createTable();
 
         // Run the workload.
-        try (YBClusterAwareDataSource ds = getDataSource()) {
-            doWrites(ds);
-            verifyRows(ds);
-        }
+        // try (YBClusterAwareDataSource ds = getDataSource()) {
+        YBClusterAwareDataSource ds = getDataSource();
+        doWrites(ds);
+        verifyRows(ds);
     }
 
     private static void createTable() throws SQLException {
@@ -41,21 +41,21 @@ public class Main {
     }
 
     private static YBClusterAwareDataSource getDataSource() {
-      YBClusterAwareDataSource ds = new YBSimpleDataSource();
+        YBClusterAwareDataSource ds = new YBClusterAwareDataSource();
 
         // Configure the data source. Note: Most settings below are the default values and are set
         // here for illustration purposes only.
-        ds.setInitialHost("localhost");
-        ds.setDatabase("yugabyte");
+        // ds.setInitialHost("localhost");
+        ds.setDatabaseName("yugabyte");
         ds.setUser("yugabyte");
         ds.setPassword("yugabyte");
-        ds.setPort(5433);
-        ds.setMaxPoolSizePerNode(1); // default 8 - reducing to 1 here.
-        ds.setConnectionTimeoutMs(2000); // default 10s - reducing to 2s here.
+        ds.setPortNumber(5433);
+        //ds.setMaxPoolSizePerNode(1); // default 8 - reducing to 1 here.
+        ds.setConnectTimeout(2000); // default 10s - reducing to 2s here.
 
         // Optionally initialize the datasource.
         // Otherwise it will be automatically initialized the first time `getConnection` is called.
-        ds.initialize();
+        //ds.initialize();
 
         return ds;
     }

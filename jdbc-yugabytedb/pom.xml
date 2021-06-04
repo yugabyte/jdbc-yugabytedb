@@ -19,13 +19,13 @@
   <parent>
     <groupId>com.yugabyte</groupId>
     <artifactId>jdbc-yugabytedb-aggregate</artifactId>
-    <version>42.2.7-yb-4-SNAPSHOT</version>
+    <version>42.2.7-yb-5-SNAPSHOT</version>
   </parent>
 
   <artifactId>jdbc-yugabytedb</artifactId>
   <packaging>jar</packaging>
   <name>YugaByte SQL JDBC Driver - JDBC 4.2</name>
-  <version>42.2.7-yb-4-SNAPSHOT</version>
+  <version>42.2.7-yb-5-SNAPSHOT</version>
   <description>Java JDBC 4.2 (JRE 8+) driver for YugaByte SQL database</description>
   <url>https://github.com/yugabyte/jdbc-yugabytedb</url>
 
@@ -59,7 +59,6 @@
     <jdbc.specification.version.nodot>42</jdbc.specification.version.nodot>
     <skip.assembly>false</skip.assembly>
 
-    <cassandra-driver-core.version>3.2.0-yb-18</cassandra-driver-core.version>
     <checkstyle.version>[8.18,)</checkstyle.version>
     <classloader-leak-test-framework.version>1.1.1</classloader-leak-test-framework.version>
     <gettext-maven-plugin.version>1.4.0</gettext-maven-plugin.version>
@@ -140,18 +139,6 @@
       <groupId>com.ongres.scram</groupId>
       <artifactId>client</artifactId>
       <version>${scram.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.yugabyte</groupId>
-      <artifactId>cassandra-driver-core</artifactId>
-      <version>${cassandra-driver-core.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
