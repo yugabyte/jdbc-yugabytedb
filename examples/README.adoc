@@ -17,39 +17,31 @@ sudo ifconfig lo0 alias 127.0.0.4
 sudo ifconfig lo0 alias 127.0.0.5
 sudo ifconfig lo0 alias 127.0.0.6
 sudo ifconfig lo0 alias 127.0.0.7
-wget https://downloads.yugabyte.com/yugabyte-2.0.1.0-darwin.tar.gz
-tar xvfz yugabyte-2.0.1.0-darwin.tar.gz && rm && cd yugabyte-2.0.1.0/
+wget https://downloads.yugabyte.com/yugabyte-2.7.1.1-darwin.tar.gz
+tar xvfz yugabyte-2.7.1.1-darwin.tar.gz && rm && cd yugabyte-2.7.1.1/
 ----
 
-=== 2. Download and start this sample app
+=== 2. Build the demo examples
+Run `mvn package` before starting the `run` script
+
+=== 3. Run this script for a demo
+Once you have YugaByteDB installed in your system, then for a demo you just need to run this script.
+The script can be run in verbose and/or interactive mode. Check the help of the script to understand
+the usage.
+
+The script starts a cluster, demonstrates different flavors of load balancing through java apps.
+At the end of the demo it destroys the cluster.
 
 [source, sh]
-----
-git clone https://github.com/yugabyte/spring-data-yugabytedb-example.git
-cd spring-data-yugabytedb-example
-mvn clean package
-----
-
-=== 3. Run the sample workload
-[source, sh]
 ---
-./run.sh <path/to/yugabyte/installation/>
+./run.sh [-v] [-i] -D <path/to/yugabyte/installation/>
 ---
+where
+ -v is for VERBOSE mode
+ -i is for INTERACTIVE mode
+ and `<path/to/yugabyte/installation/>` is the path to the directory where yugabyte was installed in step 1.
 
-where `<path/to/yugabyte/installation/>` is the path to the directory where yugabyte was installed in step 1.
-For example `./run.sh ~/yugabyte-2.0.1.0/`
+for example: `./run.sh -v -i -D ~/yugabyte-2.7.1.1/`
 
-This will run the app and a series of cluster operations (add nodes, kill nodes) while the app is running (doing writes). 
-Finally it will verify those writes to make sure there were not failures.
-
-=== 4. Clean up.
-
-To stop and erase all data of the Yugabyte cluster run
-
-[source,sh]
-----
-<path/to/yugabyte/installation/>/bin/yb-ctl destroy
-----
-
-NOTE: To just stop the cluster but keep that data run `<path/to/yugabyte/installation/>/bin/yb-ctl stop`.
-You can then start and reuse the cluster with `<path/to/yugabyte/installation/>/bin/yb-ctl start`
+This script will first show you a menu, from where you will have to select the option based on which example you want to run among UniformLoadBalance and TopologyAwareLoadBalance.
+Then the corresponding script will start running with its java app in background.

@@ -47,7 +47,7 @@ public class ClusterAwareLoadBalancer {
     return chosenHost;
   }
 
-  public static int REFRESH_LIST_SECONDS = 300;
+  public static int REFRESH_LIST_SECONDS = 10;
 
   public static boolean FORCE_REFRESH = false;
 
@@ -61,14 +61,14 @@ public class ClusterAwareLoadBalancer {
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
-    LOGGER.log(Level.INFO, "Getting the list of servers");
+    LOGGER.log(Level.FINE, "Getting the list of servers");
     ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
     ArrayList<String> currentServers = new ArrayList<>();
     while (rs.next()) {
       String host = rs.getString("host");
       currentServers.add(host);
     }
-    LOGGER.log(Level.INFO, "List of servers got {0}", currentServers);
+    LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
     // System.out.println("List of servers got: " + currentServers);
     // System.out.println();
     return currentServers;

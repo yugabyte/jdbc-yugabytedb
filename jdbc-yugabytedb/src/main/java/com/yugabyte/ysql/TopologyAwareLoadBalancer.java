@@ -45,7 +45,7 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
-    LOGGER.log(Level.INFO, "Getting the list of servers in: " + placements);
+    LOGGER.log(Level.FINE, "Getting the list of servers in: " + placements);
     ResultSet rs = st.executeQuery(ClusterAwareLoadBalancer.GET_SERVERS_QUERY);
     ArrayList<String> currentServers = new ArrayList<>();
     while (rs.next()) {
@@ -58,8 +58,8 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
       }
     }
     LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
-    System.out.println("List of servers got: " + currentServers);
-    System.out.println();
+//    System.out.println("List of servers got: " + currentServers);
+//    System.out.println();
     return currentServers;
   }
 }
