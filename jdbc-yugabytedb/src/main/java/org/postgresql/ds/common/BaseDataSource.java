@@ -1089,6 +1089,11 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     if (portNumber != 0) {
       url.append(":").append(portNumber);
     }
+    // String moreEndPoints = getAdditionalEndPoints();
+    String moreEndPoints = getAdditionalEndPoints();
+    if (moreEndPoints != null) {
+      url.append(moreEndPoints);
+    }
     url.append("/").append(URLCoder.encode(databaseName));
 
     StringBuilder query = new StringBuilder(100);
@@ -1109,6 +1114,10 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     }
 
     return url.toString();
+  }
+
+  protected String getAdditionalEndPoints() {
+    return null;
   }
 
   /**
@@ -1183,7 +1192,9 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
         break;
       case PG_PORT:
         try {
-          portNumber = Integer.parseInt(value);
+          if (portNumber == 0) {
+            portNumber = Integer.parseInt(value);
+          }
         } catch (NumberFormatException e) {
           portNumber = 0;
         }
