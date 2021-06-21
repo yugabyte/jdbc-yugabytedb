@@ -55,7 +55,7 @@ public class ClusterAwareLoadBalancer {
     if (FORCE_REFRESH) return true;
     long currentTimeInMillis = System.currentTimeMillis();
     long diff = (currentTimeInMillis - lastServerListFetchTime) / 1000;
-    boolean firstTime = this.servers == null;
+    boolean firstTime = servers == null;
     return (firstTime || diff > REFRESH_LIST_SECONDS);
   }
 
@@ -77,20 +77,18 @@ public class ClusterAwareLoadBalancer {
     // else clear server list
     long currTime = System.currentTimeMillis();
     servers = getCurrentServers(conn);
-    this.lastServerListFetchTime = currTime;
+    lastServerListFetchTime = currTime;
     unreachableHosts.clear();
-    if (!this.servers.isEmpty()) {
-      for (String h : this.servers) {
-        if (!hostToNumConnMap.containsKey(h)) {
-          hostToNumConnMap.put(h, 0);
-        }
+    for (String h : servers) {
+      if (!hostToNumConnMap.containsKey(h)) {
+        hostToNumConnMap.put(h, 0);
       }
     }
     return true;
   }
 
   public List<String> getServers() {
-    return this.servers;
+    return Collections.unmodifiableList(servers);
   }
 
   public synchronized void updateConnectionMap(String host, int incDec) {
@@ -111,7 +109,7 @@ public class ClusterAwareLoadBalancer {
 
   public synchronized void updateFailedHosts(String chosenHost) {
     unreachableHosts.add(chosenHost);
-    this.hostToNumConnMap.remove(chosenHost);
+    hostToNumConnMap.remove(chosenHost);
   }
 
   protected String loadBalancingNodes() {
