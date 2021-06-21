@@ -69,8 +69,6 @@ public class ClusterAwareLoadBalancer {
       currentServers.add(host);
     }
     LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
-    // System.out.println("List of servers got: " + currentServers);
-    // System.out.println();
     return currentServers;
   }
 

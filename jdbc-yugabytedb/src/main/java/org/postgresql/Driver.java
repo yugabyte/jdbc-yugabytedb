@@ -496,8 +496,8 @@ public class Driver implements java.sql.Driver {
         }
         throw ex;
       }
+      chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     }
-    chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     if (chosenHost == null) {
       return null;
     }

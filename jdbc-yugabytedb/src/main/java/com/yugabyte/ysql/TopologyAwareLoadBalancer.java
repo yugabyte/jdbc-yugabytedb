@@ -1,7 +1,5 @@
 package com.yugabyte.ysql;
 
-import com.yugabyte.ysql.ClusterAwareLoadBalancer;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,14 +14,14 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
   public TopologyAwareLoadBalancer(String placementvalues) {
     placements = placementvalues;
     allowedPlacements = new HashMap<>();
-    populateMap();
+    populatePlacementMap();
   }
 
   protected String loadBalancingNodes() {
     return placements;
   }
 
-  private void populateMap() {
+  private void populatePlacementMap() {
     String[] placementstrings = placements.split(",");
     for (String pl : placementstrings) {
       String[] regionandzone = pl.split("\\.");
@@ -43,6 +41,7 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
     }
   }
 
+  @Override
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
     LOGGER.log(Level.FINE, "Getting the list of servers in: " + placements);
@@ -58,8 +57,6 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
       }
     }
     LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
-//    System.out.println("List of servers got: " + currentServers);
-//    System.out.println();
     return currentServers;
   }
 }
