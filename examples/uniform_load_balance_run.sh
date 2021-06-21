@@ -86,7 +86,7 @@ jdbc_example_app_pid=$!
 
 echoSleep "Java Example App has started running in background...."
 
-pauseScript "flag1"
+pauseScript "add_node"
 
 interact $INTERACTIVE
 
@@ -95,7 +95,7 @@ $INSTALL_DIR/bin/yb-ctl add_node >> yb-ctl.log 2>&1
 
 touch .jdbc_example_app_checker   #resuming the java app
 
-pauseScript "flag2"
+pauseScript "stop_node"
 
 interact $INTERACTIVE
 
@@ -104,7 +104,7 @@ $INSTALL_DIR/bin/yb-ctl stop_node 3 >> yb-ctl.log 2>&1
 
 touch .jdbc_example_app_checker2  #resuming the java app
 
-pauseScript "flag3"
+pauseScript "perform_cleanup"
 SLEEP 2
 
 interact $INTERACTIVE

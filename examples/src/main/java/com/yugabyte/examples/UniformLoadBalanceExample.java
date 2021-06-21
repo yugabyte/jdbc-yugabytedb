@@ -11,15 +11,15 @@ import java.sql.*;
 import java.util.*;
 
 public class UniformLoadBalanceExample {
-  private static String controlUrl = "";
-  private static HikariDataSource hikariDataSource;
-  static Scanner scanner = new Scanner(System.in);
-  static List<Connection> borrowConnections = new ArrayList<>();
+  protected static String controlUrl = "";
+  protected static HikariDataSource hikariDataSource;
+  protected static Scanner scanner = new Scanner(System.in);
+  protected static List<Connection> borrowConnections = new ArrayList<>();
 
   public static void main(String[] args) {
     try {
-      Boolean VERBOSE = (args[0].equals("1") ? true : false);
-      Boolean INTERACTIVE = (args[1].equals("1") ? true : false);
+      Boolean verbose = args[0].equals("1");
+      Boolean interactive = args[1].equals("1");
       String numConnections = "6";
       String controlHost = "127.0.0.1";
       String controlPort = "5433";
@@ -31,14 +31,15 @@ public class UniformLoadBalanceExample {
       Thread.sleep(1000);
 
       testUsingHikariPool("uniform_load_balance", "true", "simple",
-        controlHost, controlPort, numConnections, VERBOSE, INTERACTIVE);
+        controlHost, controlPort, numConnections, verbose, interactive);
     } catch (InterruptedException e) {
+      Thread.interrupted();
       e.printStackTrace();
     }
   }
 
-  private static void testUsingHikariPool(String poolName, String lbpropvalue, String lookupKey,
-                                         String hostName, String port, String numConnections, Boolean VERBOSE, Boolean INTERACTIVE)  {
+  protected static void testUsingHikariPool(String poolName, String lbpropvalue, String lookupKey,
+                                            String hostName, String port, String numConnections, Boolean verbose, Boolean interactive) {
     try {
       String ds_yb = "com.yugabyte.ysql.YBClusterAwareDataSource";
 
@@ -55,7 +56,7 @@ public class UniformLoadBalanceExample {
       poolProperties.setProperty("dataSource.password", "yugabyte");
       poolProperties.setProperty("dataSource.loadBalance", "true");
       poolProperties.setProperty("dataSource.additionalEndpoints",
-      "127.0.0.2:5433,127.0.0.3:5433");
+        "127.0.0.2:5433,127.0.0.3:5433");
       if (!lbpropvalue.equals("true")) {
         poolProperties.setProperty("dataSource.topologyKeys", lookupKey);
       }
@@ -66,7 +67,7 @@ public class UniformLoadBalanceExample {
 
       //creating a table
       Connection connection = hikariDataSource.getConnection();
-      createTableStatements(connection);
+      performTableCreation(connection);
       connection.close();
 
       //running multiple threads concurrently
@@ -75,12 +76,14 @@ public class UniformLoadBalanceExample {
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
-      if(INTERACTIVE) {
+      if (interactive) {
         System.out.println("You can verify the connections on the server side using your browser");
         System.out.println("For example, you can visit \"127.0.0.1:13000/rpcz\"" + " and similarly for others...");
       }
 
-      continueScript("flag1");
+      continueScript("add_node");
+
+      //it will pause this java app till adding a node is done in cluster by shell script, for user-interaction if required based on the options provided while executing the script
       pauseApp(".jdbc_example_app_checker");
 
       makeSomeNewConnections(7);
@@ -88,35 +91,40 @@ public class UniformLoadBalanceExample {
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
-      continueScript("flag2");
-      pauseApp(".jdbc_example_app_checker2");
+      if (interactive) {
+        System.out.println("You can verify the connections on the server side using your browser");
+        System.out.println("For example, you can visit \"127.0.0.1:13000/rpcz\"" + " and similarly for others...");
+      }
 
-//      LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap(); //for debugging
+      continueScript("stop_node");
+
+      //it will pause this java app till stopping a node is done in cluster by shell script and for user-interaction if required based on the options provided while executing the script
+      pauseApp(".jdbc_example_app_checker2");
 
       makeSomeNewConnections(4);
 
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
-      if(INTERACTIVE) {
+      if (interactive) {
         System.out.println("You can verify the connections on the server side using your browser");
         System.out.println("For example, you can visit \"127.0.0.1:13000/rpcz\"" + " and similarly for others...");
       }
 
-      continueScript("flag3");
+      continueScript("perform_cleanup");
 
+      //it will pause this java app for user-interaction if required based on the options provided while executing the script
       pauseApp(".jdbc_example_app_checker3");
       System.out.println("Closing the java app...");
       hikariDataSource.close();
-      Thread.sleep(1000);
-    }catch (SQLException throwables) {
+    } catch (SQLException throwables) {
       throwables.printStackTrace();
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
   }
 
-  private static void createTableStatements(Connection connection) {
+  protected static void performTableCreation(Connection connection) {
     try {
       Statement statement = connection.createStatement();
       statement.execute("DROP TABLE IF EXISTS AGENTS");
@@ -132,17 +140,17 @@ public class UniformLoadBalanceExample {
       statement.executeUpdate("INSERT INTO AGENTS VALUES ('A012', 'Lucida', 'San Jose', '0.12', '044-52981425')");
       statement.executeUpdate("INSERT INTO AGENTS VALUES ('A005', 'Anderson', 'Brisban', '0.13', '045-21447739' )");
       statement.executeUpdate("INSERT INTO AGENTS VALUES ('A001', 'Subbarao', 'Bangalore', '0.14', '077-12346674')");
-    }catch (SQLException throwables) {
+    } catch (SQLException throwables) {
       System.out.println("Exception occured at createTable function");
       throwables.printStackTrace();
     }
   }
 
-  private static void runSqlQueriesOnMultipleThreads() throws InterruptedException {
+  protected static void runSqlQueriesOnMultipleThreads() throws InterruptedException {
     int nthreads = 6;
     Thread[] threads = new Thread[nthreads];
     for (int i = 0; i < nthreads; i++) {
-      threads[i] = new Thread(new ConcurrentQueriesClass());
+      threads[i] = new Thread(new UniformLoadBalanceExample.ConcurrentQueriesClass());
     }
 
     for (int i = 0; i < nthreads; i++) {
@@ -154,31 +162,31 @@ public class UniformLoadBalanceExample {
     }
   }
 
-  private static String [] sqlQueries = new String[] {
+  protected static String[] sqlQueries = new String[]{
     "Select AGENT_NAME, COMMISSION from AGENTS",
     "Select max(COMMISSION) from AGENTS",
     "Select PHONE_NO from AGENTS",
     "Select WORKING_AREA from AGENTS"
   };
 
-  private static void runSomeSqlQueries(Connection connection) {
+  protected static void runSomeSqlQueries(Connection connection) {
     try {
-      for(int i=0; i<sqlQueries.length; i++) {
+      for (int i = 0; i < sqlQueries.length; i++) {
         Statement statement = connection.createStatement();
         ResultSet rs = statement.executeQuery(sqlQueries[i]);
-        int cnt =0;
+        int cnt = 0;
         while (rs.next()) {
           cnt += 1;
         }
+        statement.close();
       }
-      LoadBalanceProperties.CONNECTION_MANAGER_MAP.get("simple").refresh(connection);
-    }catch (SQLException throwables) {
+    } catch (SQLException throwables) {
       System.out.println("Exception occured at runSqlQueries function");
       throwables.printStackTrace();
     }
   }
 
-  static class ConcurrentQueriesClass implements  Runnable {
+  static class ConcurrentQueriesClass implements Runnable {
     @Override
     public void run() {
       try {
@@ -186,29 +194,27 @@ public class UniformLoadBalanceExample {
         for (int i = 1; i <= 1000; i++) {
           runSomeSqlQueries(connection);
         }
-      }
-      catch (SQLException throwables) {
+      } catch (SQLException throwables) {
         throwables.printStackTrace();
       }
     }
   }
 
 
-  static void makeSomeNewConnections(int new_connections) {
+  protected static void makeSomeNewConnections(int new_connections) {
     System.out.println("Creating " + new_connections + " new connections....");
     try {
-      for(int i=1; i<=new_connections; i++) {
+      for (int i = 1; i <= new_connections; i++) {
         Connection connection = DriverManager.getConnection(controlUrl);
         runSomeSqlQueries(connection);
         borrowConnections.add(connection);
       }
-
     } catch (SQLException throwables) {
       throwables.printStackTrace();
     }
   }
 
-  private static void continueScript(String flagValue) {
+  protected static void continueScript(String flagValue) {
     FileWriter fileWriter = null;
     try {
       fileWriter = new FileWriter(".notify_shell_script");
@@ -219,13 +225,13 @@ public class UniformLoadBalanceExample {
     }
   }
 
-  static void pauseApp(String s) {
+  protected static void pauseApp(String s) {
     try {
       System.in.read();
     } catch (IOException e) {
       e.printStackTrace();
     }
     File file = new File(s);
-    while (file.exists()==false) ;
+    while (file.exists() == false) ;
   }
 }
