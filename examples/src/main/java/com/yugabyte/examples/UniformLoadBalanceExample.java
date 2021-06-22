@@ -17,25 +17,22 @@ public class UniformLoadBalanceExample {
   protected static List<Connection> borrowConnections = new ArrayList<>();
 
   public static void main(String[] args) {
-    try {
-      Boolean verbose = args[0].equals("1");
-      Boolean interactive = args[1].equals("1");
-      String numConnections = "6";
-      String controlHost = "127.0.0.1";
-      String controlPort = "5433";
+    int argsLen = args.length;
+    Boolean verbose = argsLen > 0 ? args[0].equals("1") : Boolean.FALSE;
+    Boolean interactive = argsLen > 1 ? args[1].equals("1") : Boolean.FALSE;
+    // Since it is just a demo app. Using some smaller values so that it can run
+    // on laptop
+    String numConnections = "6";
+    String controlHost = "127.0.0.1";
+    String controlPort = "5433";
 
-      controlUrl = "jdbc:postgresql://" + controlHost
-        + ":" + controlPort + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+    controlUrl = "jdbc:postgresql://" + controlHost
+      + ":" + controlPort + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
 
-      System.out.println("Setting up the connection pool having 6 connections.......");
-      Thread.sleep(1000);
+    System.out.println("Setting up the connection pool having 6 connections.......");
 
-      testUsingHikariPool("uniform_load_balance", "true", "simple",
-        controlHost, controlPort, numConnections, verbose, interactive);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      e.printStackTrace();
-    }
+    testUsingHikariPool("uniform_load_balance", "true", "simple",
+      controlHost, controlPort, numConnections, verbose, interactive);
   }
 
   protected static void testUsingHikariPool(String poolName, String lbpropvalue, String lookupKey,
@@ -73,6 +70,9 @@ public class UniformLoadBalanceExample {
       //running multiple threads concurrently
       runSqlQueriesOnMultipleThreads();
 
+      // This is an internal map for debugging which keeps a map of
+      // "server -> num_connections"
+      // made by the driver in this application
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
@@ -83,11 +83,13 @@ public class UniformLoadBalanceExample {
 
       continueScript("add_node");
 
-      //it will pause this java app till adding a node is done in cluster by shell script, for user-interaction if required based on the options provided while executing the script
+      // This will pause this java app till adding a node is done in cluster by shell script,
+      // This is for the interactive mode.
       pauseApp(".jdbc_example_app_checker");
 
       makeSomeNewConnections(7);
 
+      // Printing the current load from internal accounting map
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
@@ -98,11 +100,13 @@ public class UniformLoadBalanceExample {
 
       continueScript("stop_node");
 
-      //it will pause this java app till stopping a node is done in cluster by shell script and for user-interaction if required based on the options provided while executing the script
+      //This will pause this java app till stopping a node is done in cluster by shell script.
+      // and for interactive-mode if required based on the options provided while executing the script
       pauseApp(".jdbc_example_app_checker2");
 
       makeSomeNewConnections(4);
 
+      // Printing the current load from internal accounting map
       LoadBalanceProperties.CONNECTION_MANAGER_MAP.get(lookupKey).printHostToConnMap();
       System.out.println();
 
@@ -113,7 +117,7 @@ public class UniformLoadBalanceExample {
 
       continueScript("perform_cleanup");
 
-      //it will pause this java app for user-interaction if required based on the options provided while executing the script
+      //This will pause this java app for interactive-mode if required based on the options provided while executing the script
       pauseApp(".jdbc_example_app_checker3");
       System.out.println("Closing the java app...");
     } catch (SQLException throwables) {
@@ -229,6 +233,14 @@ public class UniformLoadBalanceExample {
 
   protected static void pauseApp(String fileName) {
     File file = new File(fileName);
-    while (file.exists() == false) ;
+    while (file.exists()==false) {
+      try {
+        Thread.sleep(2000);
+      } catch (InterruptedException e) {
+        // ignore the exception and break
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
   }
 }

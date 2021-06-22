@@ -13,8 +13,11 @@ import java.util.*;
 public class TopologyAwareLoadBalanceExample extends UniformLoadBalanceExample{
 
   public static void main(String[] args) {
-    Boolean verbose = args[0].equals("1");
-    Boolean interactive = args[1].equals("1");
+    int argsLen = args.length;
+    Boolean verbose = argsLen > 0 ? args[0].equals("1") : Boolean.FALSE;
+    Boolean interactive = argsLen > 1 ? args[1].equals("1") : Boolean.FALSE;
+    // Since it is just a demo app. Using some smaller values so that it can run
+    // on laptop
     String numConnections = "6";
     String controlHost = "127.0.0.1";
     String controlPort = "5433";
