@@ -33,7 +33,7 @@ public class UniformLoadBalanceExample {
       testUsingHikariPool("uniform_load_balance", "true", "simple",
         controlHost, controlPort, numConnections, verbose, interactive);
     } catch (InterruptedException e) {
-      Thread.interrupted();
+      Thread.currentThread().interrupt();
       e.printStackTrace();
     }
   }
@@ -66,9 +66,9 @@ public class UniformLoadBalanceExample {
       hikariDataSource = new HikariDataSource(hikariConfig);
 
       //creating a table
-      Connection connection = hikariDataSource.getConnection();
-      performTableCreation(connection);
-      connection.close();
+      try (Connection connection = hikariDataSource.getConnection()) {
+        performTableCreation(connection);
+      }
 
       //running multiple threads concurrently
       runSqlQueriesOnMultipleThreads();
@@ -116,17 +116,26 @@ public class UniformLoadBalanceExample {
       //it will pause this java app for user-interaction if required based on the options provided while executing the script
       pauseApp(".jdbc_example_app_checker3");
       System.out.println("Closing the java app...");
-      hikariDataSource.close();
     } catch (SQLException throwables) {
       throwables.printStackTrace();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       e.printStackTrace();
+    } finally {
+      //closing the resources
+      hikariDataSource.close();
+      for (Connection connection : borrowConnections) {
+        try {
+          connection.close();
+        } catch (SQLException exception) {
+          exception.printStackTrace();
+        }
+      }
     }
   }
 
   protected static void performTableCreation(Connection connection) {
-    try {
-      Statement statement = connection.createStatement();
+    try (Statement statement = connection.createStatement()) {
       statement.execute("DROP TABLE IF EXISTS AGENTS");
       String query = "CREATE TABLE AGENTS  ( AGENT_CODE VARCHAR(6) NOT NULL PRIMARY KEY, AGENT_NAME VARCHAR(40), " +
         "WORKING_AREA VARCHAR(35), COMMISSION numeric(10,2), PHONE_NO VARCHAR(15))";
@@ -141,7 +150,6 @@ public class UniformLoadBalanceExample {
       statement.executeUpdate("INSERT INTO AGENTS VALUES ('A005', 'Anderson', 'Brisban', '0.13', '045-21447739' )");
       statement.executeUpdate("INSERT INTO AGENTS VALUES ('A001', 'Subbarao', 'Bangalore', '0.14', '077-12346674')");
     } catch (SQLException throwables) {
-      System.out.println("Exception occured at createTable function");
       throwables.printStackTrace();
     }
   }
@@ -153,6 +161,7 @@ public class UniformLoadBalanceExample {
       threads[i] = new Thread(new UniformLoadBalanceExample.ConcurrentQueriesClass());
     }
 
+    System.out.println("Waiting for multiple concurrent threads to execute some SQL queries...");
     for (int i = 0; i < nthreads; i++) {
       threads[i].start();
     }
@@ -170,27 +179,23 @@ public class UniformLoadBalanceExample {
   };
 
   protected static void runSomeSqlQueries(Connection connection) {
-    try {
-      for (int i = 0; i < sqlQueries.length; i++) {
-        Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery(sqlQueries[i]);
+    for (int i = 0; i < sqlQueries.length; i++) {
+      try (Statement statement = connection.createStatement();
+           ResultSet rs = statement.executeQuery(sqlQueries[i])) {
         int cnt = 0;
         while (rs.next()) {
           cnt += 1;
         }
-        statement.close();
+      } catch (SQLException exception) {
+        exception.printStackTrace();
       }
-    } catch (SQLException throwables) {
-      System.out.println("Exception occured at runSqlQueries function");
-      throwables.printStackTrace();
     }
   }
 
   static class ConcurrentQueriesClass implements Runnable {
     @Override
     public void run() {
-      try {
-        Connection connection = hikariDataSource.getConnection();
+      try (Connection connection = hikariDataSource.getConnection()) {
         for (int i = 1; i <= 1000; i++) {
           runSomeSqlQueries(connection);
         }
@@ -215,23 +220,15 @@ public class UniformLoadBalanceExample {
   }
 
   protected static void continueScript(String flagValue) {
-    FileWriter fileWriter = null;
-    try {
-      fileWriter = new FileWriter(".notify_shell_script");
+    try (FileWriter fileWriter = new FileWriter(".notify_shell_script")) {
       fileWriter.write(flagValue);
-      fileWriter.close();
     } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
-  protected static void pauseApp(String s) {
-    try {
-      System.in.read();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    File file = new File(s);
+  protected static void pauseApp(String fileName) {
+    File file = new File(fileName);
     while (file.exists() == false) ;
   }
 }
