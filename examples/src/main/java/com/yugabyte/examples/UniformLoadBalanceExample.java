@@ -127,7 +127,9 @@ public class UniformLoadBalanceExample {
       e.printStackTrace();
     } finally {
       //closing the resources
-      hikariDataSource.close();
+      if (hikariDataSource != null) {
+        hikariDataSource.close();
+      }
       for (Connection connection : borrowConnections) {
         try {
           connection.close();

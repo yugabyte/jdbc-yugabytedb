@@ -1,5 +1,9 @@
 package com.yugabyte.ysql;
 
+import org.postgresql.PGConnection;
+import org.postgresql.core.v3.QueryExecutorImpl;
+import org.postgresql.jdbc.PgConnection;
+
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
@@ -59,17 +63,38 @@ public class ClusterAwareLoadBalancer {
     return (firstTime || diff > REFRESH_LIST_SECONDS);
   }
 
+  protected static String columnToUseForHost = null;
+
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
     LOGGER.log(Level.FINE, "Getting the list of servers");
     ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
-    ArrayList<String> currentServers = new ArrayList<>();
+    ArrayList<String> currentPrivateIps = new ArrayList<>();
+    ArrayList<String> currentPublicIps = new ArrayList<>();
+    String hostConnectedTo = ((PgConnection)conn).getQueryExecutor().getHostSpec().getHost();
+    Boolean useHostColumn = null;
     while (rs.next()) {
       String host = rs.getString("host");
-      currentServers.add(host);
+      String public_host = rs.getString("public_ip");
+      currentPrivateIps.add(host);
+      currentPublicIps.add(public_host);
+      if (hostConnectedTo.equals(host)) {
+        useHostColumn = Boolean.TRUE;
+      } else if (hostConnectedTo.equals(public_host)) {
+        useHostColumn = Boolean.FALSE;
+      }
     }
-    LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
-    return currentServers;
+    return getPrivateOrPublicServers(useHostColumn, currentPrivateIps, currentPublicIps);
+  }
+
+  protected ArrayList<String> getPrivateOrPublicServers(Boolean useHostColumn, ArrayList<String> privateHosts, ArrayList<String> publicHosts) {
+    if (useHostColumn == null) {
+      LOGGER.log(Level.WARNING, "Either private or public should have been determined");
+      return null;
+    }
+    ArrayList<String> currentHosts = useHostColumn ? privateHosts : publicHosts;
+    LOGGER.log(Level.FINE, "List of servers got {0}", currentHosts);
+    return currentHosts;
   }
 
   public synchronized boolean refresh(Connection conn) throws SQLException {
@@ -77,6 +102,7 @@ public class ClusterAwareLoadBalancer {
     // else clear server list
     long currTime = System.currentTimeMillis();
     servers = getCurrentServers(conn);
+    if (servers == null) return false;
     lastServerListFetchTime = currTime;
     unreachableHosts.clear();
     for (String h : servers) {

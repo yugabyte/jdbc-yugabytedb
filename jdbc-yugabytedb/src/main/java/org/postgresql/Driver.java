@@ -487,7 +487,9 @@ public class Driver implements java.sql.Driver {
           database(lbprops.getOriginalProperties()), props, url);
       try {
         LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
-        loadBalancer.refresh(controlConnection);
+        if (!loadBalancer.refresh(controlConnection)) {
+          return null;
+        }
         controlConnection.close();
       } catch (PSQLException ex) {
         if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
@@ -510,9 +512,10 @@ public class Driver implements java.sql.Driver {
           hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
         ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
         connectionCreated = true;
-        loadBalancer.refresh(newConnection);
-        loadBalancer.updateConnectionMap(chosenHost, 1);
-        return newConnection;
+        if (loadBalancer.refresh(newConnection)) {
+          loadBalancer.updateConnectionMap(chosenHost, 1);
+          return newConnection;
+        }
       } catch (PSQLException ex) {
         if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
           if (firstException == null) {

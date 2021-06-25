@@ -1,5 +1,7 @@
 package com.yugabyte.ysql;
 
+import org.postgresql.jdbc.PgConnection;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,17 +48,26 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
     Statement st = conn.createStatement();
     LOGGER.log(Level.FINE, "Getting the list of servers in: " + placements);
     ResultSet rs = st.executeQuery(ClusterAwareLoadBalancer.GET_SERVERS_QUERY);
-    ArrayList<String> currentServers = new ArrayList<>();
+    ArrayList<String> currentPrivateIps = new ArrayList<>();
+    ArrayList<String> currentPublicIps = new ArrayList<>();
+    String hostConnectedTo = ((PgConnection)conn).getQueryExecutor().getHostSpec().getHost();
+    Boolean useHostColumn = null;
     while (rs.next()) {
       String host = rs.getString("host");
+      String publicIp = rs.getString("public_ip");
       String region = rs.getString("region");
       String zone = rs.getString("zone");
       Set<String> zones = allowedPlacements.get(region);
+      if (hostConnectedTo.equals(host)) {
+        useHostColumn = Boolean.TRUE;
+      } else if (hostConnectedTo.equals(publicIp)) {
+        useHostColumn = Boolean.FALSE;
+      }
       if (zones != null && (zones.isEmpty() || zones.contains(zone))) {
-        currentServers.add(host);
+        currentPrivateIps.add(host);
+        currentPublicIps.add(publicIp);
       }
     }
-    LOGGER.log(Level.FINE, "List of servers got {0}", currentServers);
-    return currentServers;
+    return getPrivateOrPublicServers(useHostColumn, currentPrivateIps, currentPublicIps);
   }
 }
