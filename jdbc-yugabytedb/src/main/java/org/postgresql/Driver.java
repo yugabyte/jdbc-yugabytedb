@@ -515,6 +515,8 @@ public class Driver implements java.sql.Driver {
         if (loadBalancer.refresh(newConnection)) {
           loadBalancer.updateConnectionMap(chosenHost, 1);
           return newConnection;
+        } else {
+          failedHosts.add(chosenHost);
         }
       } catch (PSQLException ex) {
         if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
