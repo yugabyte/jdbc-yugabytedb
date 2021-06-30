@@ -73,6 +73,10 @@ public class ClusterAwareLoadBalancer {
     ArrayList<String> currentPublicIps = new ArrayList<>();
     String hostConnectedTo = ((PgConnection)conn).getQueryExecutor().getHostSpec().getHost();
     Boolean useHostColumn = null;
+    boolean isIpv6Addresses = hostConnectedTo.contains(":");
+    if (isIpv6Addresses) {
+      hostConnectedTo = hostConnectedTo.replace("[", "").replace("]", "");
+    }
     while (rs.next()) {
       String host = rs.getString("host");
       String public_host = rs.getString("public_ip");

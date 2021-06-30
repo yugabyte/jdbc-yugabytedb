@@ -1107,7 +1107,7 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
         for (String ipv6addr : endpointArr) {
           int lastColIdx = ipv6addr.lastIndexOf(":");
           String ipAddr = ipv6addr.substring(0, lastColIdx);
-          String port = ipv6addr.substring(lastColIdx, ipv6addr.length() - 1);
+          String port = ipv6addr.substring(lastColIdx + 1, ipv6addr.length());
           appendedIpv6Addr = true;
           url.append('[');
           url.append(ipAddr);
