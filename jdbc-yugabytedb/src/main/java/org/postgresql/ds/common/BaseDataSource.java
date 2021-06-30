@@ -1089,10 +1089,25 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     if (portNumber != 0) {
       url.append(":").append(portNumber);
     }
-    // String moreEndPoints = getAdditionalEndPoints();
     String moreEndPoints = getAdditionalEndPoints();
     if (moreEndPoints != null) {
-      url.append(moreEndPoints);
+      if (moreEndPoints.contains(":")) {
+        // It is an Ipv6 address
+        String[] endpointArr = moreEndPoints.split(",");
+        boolean appendedIpv6Addr = false;
+        for (String ipv6addr : endpointArr) {
+          appendedIpv6Addr = true;
+          url.append('[');
+          url.append(ipv6addr);
+          url.append(']');
+          url.append(',');
+        }
+        if (appendedIpv6Addr) {
+          url.setLength(url.length() - 1);
+        }
+      } else {
+        url.append(moreEndPoints);
+      }
     }
     url.append("/").append(URLCoder.encode(databaseName));
 

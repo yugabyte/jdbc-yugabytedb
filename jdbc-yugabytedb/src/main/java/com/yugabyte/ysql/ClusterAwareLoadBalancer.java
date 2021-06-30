@@ -51,7 +51,7 @@ public class ClusterAwareLoadBalancer {
     return chosenHost;
   }
 
-  public static int REFRESH_LIST_SECONDS = 10;
+  public static int REFRESH_LIST_SECONDS = 300;
 
   public static boolean FORCE_REFRESH = false;
 
