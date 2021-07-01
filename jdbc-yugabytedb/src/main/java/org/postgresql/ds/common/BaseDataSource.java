@@ -51,7 +51,7 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   private int portNumber = 0;
 
   // Map for all other properties
-  private Properties properties = new Properties();
+  protected Properties properties = new Properties();
 
   /*
    * Ensure the driver is loaded as JDBC Driver might be invisible to Java's ServiceLoader.
@@ -1085,9 +1085,43 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   public String getUrl() {
     StringBuilder url = new StringBuilder(100);
     url.append("jdbc:postgresql://");
-    url.append(serverName);
+    boolean isIpv6 = serverName.contains(":");
+    if (serverName.contains(":")) {
+      url.append('[');
+      url.append(serverName);
+      url.append(']');
+    } else {
+      url.append(serverName);
+    }
     if (portNumber != 0) {
       url.append(":").append(portNumber);
+    }
+    String moreEndPoints = getAdditionalEndPoints();
+    if (moreEndPoints != null) {
+      url.append(",");
+      boolean isIpv6Address = isIpv6Address(moreEndPoints);
+      if (isIpv6Address) {
+        // It is an Ipv6 address
+        String[] endpointArr = moreEndPoints.split(",");
+        boolean appendedIpv6Addr = false;
+        for (String ipv6addr : endpointArr) {
+          int lastColIdx = ipv6addr.lastIndexOf(":");
+          String ipAddr = ipv6addr.substring(0, lastColIdx);
+          String port = ipv6addr.substring(lastColIdx + 1, ipv6addr.length());
+          appendedIpv6Addr = true;
+          url.append('[');
+          url.append(ipAddr);
+          url.append(']');
+          url.append(':');
+          url.append(port);
+          url.append(',');
+        }
+        if (appendedIpv6Addr) {
+          url.setLength(url.length() - 1);
+        }
+      } else {
+        url.append(moreEndPoints);
+      }
     }
     url.append("/").append(URLCoder.encode(databaseName));
 
@@ -1109,6 +1143,20 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     }
 
     return url.toString();
+  }
+
+  private boolean isIpv6Address(String moreEndPoints) {
+    String[] splits = moreEndPoints.split(",");
+    if (splits.length > 0) {
+      String oneElement = splits[0];
+      String[] subSplits = oneElement.split(":");
+      if (subSplits.length > 2) return true;
+    }
+    return false;
+  }
+
+  protected String getAdditionalEndPoints() {
+    return null;
   }
 
   /**
@@ -1183,7 +1231,9 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
         break;
       case PG_PORT:
         try {
-          portNumber = Integer.parseInt(value);
+          if (portNumber == 0) {
+            portNumber = Integer.parseInt(value);
+          }
         } catch (NumberFormatException e) {
           portNumber = 0;
         }

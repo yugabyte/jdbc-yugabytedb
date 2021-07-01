@@ -27,6 +27,7 @@ import org.postgresql.core.TypeInfo;
 import org.postgresql.core.Utils;
 import org.postgresql.core.Version;
 import org.postgresql.fastpath.Fastpath;
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import org.postgresql.largeobject.LargeObjectManager;
 import org.postgresql.replication.PGReplicationConnection;
 import org.postgresql.replication.PGReplicationConnectionImpl;
@@ -143,6 +144,12 @@ public class PgConnection implements BaseConnection {
   private final boolean replicationConnection;
 
   private final LruCache<FieldMetadata.Key, FieldMetadata> fieldMetadataCache;
+
+  private static volatile PgConnection controlConnection = null;
+  private ClusterAwareLoadBalancer loadBalancer;
+
+  public static void createControlConnection(String url, Properties props) {
+  }
 
   final CachedQuery borrowQuery(String sql) throws SQLException {
     return queryExecutor.borrowQuery(sql);
@@ -677,6 +684,14 @@ public class PgConnection implements BaseConnection {
     releaseTimer();
     queryExecutor.close();
     openStackTrace = null;
+    String host = queryExecutor.getHostSpec().getHost();
+    if (loadBalancer != null && host != null) {
+      loadBalancer.updateConnectionMap(host, -1);
+    }
+  }
+
+  public void setLoadBalancer(ClusterAwareLoadBalancer lb) {
+    this.loadBalancer = lb;
   }
 
   @Override

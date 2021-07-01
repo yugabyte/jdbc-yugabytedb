@@ -5,7 +5,9 @@
 
 package org.postgresql;
 
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import org.postgresql.jdbc.PgConnection;
+import com.yugabyte.ysql.LoadBalanceProperties;
 import org.postgresql.util.DriverInfo;
 import org.postgresql.util.ExpressionProperties;
 import org.postgresql.util.GT;
@@ -27,10 +29,7 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,12 +55,14 @@ import java.util.logging.StreamHandler;
  */
 public class Driver implements java.sql.Driver {
 
+  // TODO think on how to initialize this flag
+  private static final boolean LOAD_BALANCE = true;
   private static Driver registeredDriver;
   private static final Logger PARENT_LOGGER = Logger.getLogger("org.postgresql");
   private static final Logger LOGGER = Logger.getLogger("org.postgresql.Driver");
   private static SharedTimer sharedTimer = new SharedTimer();
   private static final String DEFAULT_PORT =
-      /*$"\""+mvn.project.property.template.default.pg.port+"\";"$*//*-*/"5431";
+      /*$"\""+mvn.project.property.template.default.pg.port+"\";"$*//*-*/"5433";
 
   static {
     try {
@@ -450,12 +451,93 @@ public class Driver implements java.sql.Driver {
    * thread without enforcing a timeout, regardless of any timeout specified in the properties.
    *
    * @param url the original URL
-   * @param props the parsed/defaulted connection properties
+   * @param properties the parsed/defaulted connection properties
    * @return a new connection
    * @throws SQLException if the connection could not be made
    */
-  private static Connection makeConnection(String url, Properties props) throws SQLException {
-    return new PgConnection(hostSpecs(props), user(props), database(props), props, url);
+  private static Connection makeConnection(String url, Properties properties) throws SQLException {
+    LoadBalanceProperties lbprops = new LoadBalanceProperties(url, properties);
+    if (lbprops.hasLoadBalance()) {
+      Connection conn = getConnectionBalanced(lbprops);
+      if (conn != null) {
+        return conn;
+      }
+      LOGGER.log(Level.WARNING, "Failed to apply load balance. Trying normal connection");
+      // but remember to use stripped url and props
+      url = lbprops.getStrippedURL();
+      properties = lbprops.getStrippedProperties();
+    }
+    return new PgConnection(hostSpecs(properties), user(properties), database(properties), properties, url);
+  }
+
+  private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) throws SQLException {
+    ClusterAwareLoadBalancer loadBalancer = lbprops.getAppropriateLoadBalancer();
+    Properties props = lbprops.getStrippedProperties();
+    String url = lbprops.getStrippedURL();
+    Set<String> unreachableHosts = loadBalancer.getUnreachableHosts();
+    List<String> failedHosts = new ArrayList<>(unreachableHosts);
+    String chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
+    Connection newConnection = null;
+    Connection controlConnection = null;
+    SQLException firstException = null;
+    if (chosenHost == null) {
+      HostSpec[] hspec = hostSpecs(lbprops.getOriginalProperties());
+      controlConnection = new PgConnection(
+        hspec, user(lbprops.getOriginalProperties()),
+          database(lbprops.getOriginalProperties()), props, url);
+      try {
+        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
+        if (!loadBalancer.refresh(controlConnection)) {
+          return null;
+        }
+        controlConnection.close();
+      } catch (PSQLException ex) {
+        if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
+          return null;
+        }
+        throw ex;
+      }
+      chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
+    }
+    if (chosenHost == null) {
+      return null;
+    }
+    // refresh can also fail on a particular server so try in loop till
+    // options exhausted
+    boolean connectionCreated = false;
+    while (chosenHost != null) {
+      try {
+        props.setProperty("PGHOST", chosenHost);
+        newConnection = new PgConnection(
+          hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
+        ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
+        connectionCreated = true;
+        if (loadBalancer.refresh(newConnection)) {
+          loadBalancer.updateConnectionMap(chosenHost, 1);
+          return newConnection;
+        } else {
+          failedHosts.add(chosenHost);
+        }
+      } catch (PSQLException ex) {
+        if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
+          if (firstException == null) {
+            firstException = ex;
+          }
+          // TODO log exception go to the next one after adding to failed list
+          LOGGER.log(Level.WARNING,
+            "couldn't connect to {0}, adding to failed host list", chosenHost);
+          failedHosts.add(chosenHost);
+          loadBalancer.updateFailedHosts(chosenHost);
+          if (connectionCreated) {
+            // ignore refresh. return the connection after updating map
+            loadBalancer.updateConnectionMap(chosenHost, 1);
+            return newConnection;
+          }
+          chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
+        }
+      }
+    }
+    throw firstException;
   }
 
   /**

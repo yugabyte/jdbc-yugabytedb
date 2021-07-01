@@ -11,8 +11,16 @@
     <dependency>
       <groupId>com.yugabyte</groupId>
       <artifactId>jdbc-yugabytedb</artifactId>
-      <version>42.2.7-yb-3</version>
+      <version>42.2.7-yb-5-SNAPSHOT</version>
     </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.zaxxer/HikariCP -->
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>4.0.3</version>
+    </dependency>
+
 
   </dependencies>
 
@@ -28,13 +36,6 @@
         <goals>
           <goal>shade</goal>
         </goals>
-        <configuration>
-          <transformers>
-            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-              <mainClass>com.yugabyte.examples.Main</mainClass>
-            </transformer>
-          </transformers>
-        </configuration>
         </execution>
         </executions>
       </plugin>
