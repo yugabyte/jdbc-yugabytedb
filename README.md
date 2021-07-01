@@ -2,27 +2,30 @@
 # YugabyteDB JDBC Driver
 This is a distributed JDBC driver for YugabyteDB SQL. This driver is based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
 
-> **NOTE:** This project is currently **experimental** and should not be used for production facing applications. If you are interested in more details or helping with this effort, let us know on the [Yugabyte Community Slack](https://www.yugabyte.com/slack).
-
 ## Features
 
 This JDBC driver has the following features:
 
 ### Cluster Awareness to eliminate need for a load balancer
 
-This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugabyteDB cluster, using which it discovers the rest of the nodes. Additionally, it automatically learns about the nodes being started/added or stopped/removed. Internally a connection pool is maintained for each node. A random live node is chosen to connect to the cluster and execute a statement. it will choose a live node to get a connection. When the connection is closed by the application, it is returned to the respective pool.
+This driver adds a `YBClusterAwareDataSource` that requires only an initial _contact point_ for the YugabyteDB cluster, using which it discovers the rest of the nodes. Additionally, it automatically learns about the nodes being started/added or stopped/removed. Internally the driver keeps track of number of connections it has created to each server endpoint and every new connection request is connected to the least loaded server as per the driver's view.
 
 ### Topology Awareness to enable geo-distributed apps
 
-> **NOTE:** This feature is still in progress.
+This is similar to 'Cluster Awareness' but uses those servers which are part of a given set of geo-locations specified by _topology-keys_.
 
 ### Shard awareness for high performance
 
 > **NOTE:** This feature is still in the design phase.
 
+### Connection Properties added for load balancing
 
+- _load-balance_   - It takes 'true' or 'false' as valid values. By default it is 'false' for now.
+- _topology-keys_  - It takes a comma separated geo-location values. The geo-location can be given as 'cloud:region:zone'.
 
-## Get the Driver
+** Please refer to the [#Use the Driver] section for examples.
+
+### Get the Driver
 
 ### From Maven
 
@@ -32,7 +35,7 @@ Add the following lines to your maven project.
 <dependency>
   <groupId>com.yugabyte</groupId>
   <artifactId>jdbc-yugabytedb</artifactId>
-  <version>42.2.7-yb-3</version>
+  <version>42.2.7-yb-5</version>
 </dependency>
 ```
 
@@ -57,24 +60,66 @@ Add the following lines to your maven project.
     <dependency>
         <groupId>com.yugabyte</groupId>
         <artifactId>jdbc-yugabytedb</artifactId>
-        <version>42.2.7-yb-3-SNAPSHOT</version>
+        <version>42.2.7-yb-5-SNAPSHOT</version>
     </dependency> 
     ```
 
-## Use the Driver
+### Use the Driver
 
-- Create the DataSource by passing an initial contact point
+- Passing new connection properties for load balancing in connection url or properties bag
+#### For uniform load balancing across all the server you just need to specify the _load-balance=true_ property in the url.
+    ```
+    String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+    DriverManager.getConnection(yburl);
+    ```
+
+#### For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_. 
+
+    ```
+    String controlurl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
+    DriverManager.getConnection(yburl);
+    ```
+
+- Create and setup the DataSource for uniform load balancing
+  A datasource for Yugabyte has been added. It can be configured like this for load balancing behaviour.
     ```
     String jdbcUrl = "jdbc:postgresql://127.0.0.1:5433/yugabyte";
-    YBClusterAwareDataSource ds = new YBClusterAwareDataSource(jdbcUrl);
+    YBClusterAwareDataSource ds = new YBClusterAwareDataSource();
+    ds.setUrl(jdbcUrl);
+    ds.setLoadBalance("true");
+    // If topology aware distribution to be enabled then
+    ds.setTopologyKeys("cloud1.region1.zone1,cloud1.region2.zone2");
+    // If you want to provide more endpoints to safeguard against even first connection failure due
+    to the possible unavailability of initial contact point.
+    ds.setAdditionalEndpoints("127.0.0.2:5433,127.0.0.3:5433");
+
+    Connection conn = ds.getConnection();
     ```
 
-- Use like a regular (pooling) DataSource
+- Create and setup the DataSource with a popular pooling solution like Hikari
+    
     ```
-    // Using try-with-resources to auto-close the connection when done.
-    try (Connection connection = ds.getConnection()) {
-        // Use the connection as usual.
-    } catch (java.sql.SQLException e) {
-        // Handle/Report error.
-    }
+    Properties poolProperties = new Properties();
+    poolProperties.setProperty("dataSourceClassName", "com.yugabyte.ysql.YBClusterAwareDataSource");
+    poolProperties.setProperty("maximumPoolSize", 10);
+    poolProperties.setProperty("dataSource.serverName", "127.0.0.1");
+    poolProperties.setProperty("dataSource.portNumber", "5433");
+    poolProperties.setProperty("dataSource.databaseName", "yugabyte");
+    poolProperties.setProperty("dataSource.user", "yugabyte");
+    poolProperties.setProperty("dataSource.password", "yugabyte");
+    poolProperties.setProperty("dataSource.loadBalance", "true");
+    // If you want to provide additional end points
+    String additionalEndpoints = "127.0.0.2:5433,127.0.0.3:5433,127.0.0.4:5433,127.0.0.5:5433";
+    poolProperties.setProperty("dataSource.additionalEndpoints", additionalEndpoints);
+    // If you want to load balance between specific geo locations using topology keys
+    String geoLocations = "cloud1.region1.zone1,cloud1.region2.zone2";
+    poolProperties.setProperty("dataSource.topologyKeys", geoLocations);
+
+    poolProperties.setProperty("poolName", name);
+
+    HikariConfig config = new HikariConfig(poolProperties);
+    config.validate();
+    HikariDataSource ds = new HikariDataSource(config);
+
+    Connection conn = ds.getConnection();
     ```
