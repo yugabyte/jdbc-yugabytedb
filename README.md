@@ -23,7 +23,7 @@ This is similar to 'Cluster Awareness' but uses those servers which are part of 
 - _load-balance_   - It takes 'true' or 'false' as valid values. By default it is 'false' for now.
 - _topology-keys_  - It takes a comma separated geo-location values. The geo-location can be given as 'cloud:region:zone'.
 
-** Please refer to the [#Use the Driver] section for examples.
+Please refer to the [Use the Driver](#Use the Driver) section for examples.
 
 ### Get the Driver
 
@@ -77,7 +77,7 @@ Add the following lines to your maven project.
   For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_. 
 
     ```
-    String controlurl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
+    String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
     DriverManager.getConnection(yburl);
     ```
 
