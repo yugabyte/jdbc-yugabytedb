@@ -1,5 +1,6 @@
 package com.yugabyte.examples;
 
+import com.yugabyte.ysql.ClusterAwareLoadBalancer;
 import com.yugabyte.ysql.LoadBalanceProperties;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -39,6 +40,10 @@ public class UniformLoadBalanceExample {
                                             String hostName, String port, String numConnections, Boolean verbose, Boolean interactive) {
     try {
       String ds_yb = "com.yugabyte.ysql.YBClusterAwareDataSource";
+
+      //This is just for demo purpose because right now default time for refresh is 5min
+      //and we don't want the user to wait that much in this app
+      ClusterAwareLoadBalancer.FORCE_REFRESH = true;
 
       Properties poolProperties = new Properties();
       poolProperties.setProperty("poolName", poolName);
