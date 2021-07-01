@@ -64,16 +64,17 @@ Add the following lines to your maven project.
     </dependency> 
     ```
 
-### Use the Driver
+## Use the Driver
 
 - Passing new connection properties for load balancing in connection url or properties bag
-#### For uniform load balancing across all the server you just need to specify the _load-balance=true_ property in the url.
+  
+  For uniform load balancing across all the server you just need to specify the _load-balance=true_ property in the url.
     ```
     String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
     DriverManager.getConnection(yburl);
     ```
 
-#### For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_. 
+  For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_. 
 
     ```
     String controlurl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
