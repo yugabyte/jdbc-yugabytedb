@@ -39,6 +39,14 @@ Add the following lines to your maven project.
 
 ### Build locally
 
+0. Build environment
+
+   gpgsuite needs to be present on the machine where build is performed.
+   ```
+   https://gpgtools.org/
+   ```
+   Please install gpg and create a key.
+
 1. Clone this repository.
 
     ```
