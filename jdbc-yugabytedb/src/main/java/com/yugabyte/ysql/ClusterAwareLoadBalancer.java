@@ -39,23 +39,23 @@ public class ClusterAwareLoadBalancer {
 
   public String getLeastLoadedServer(List<String> failedHosts) {
     int min = Integer.MAX_VALUE;
-    ArrayList<String> minHostList = new ArrayList<>();
+    ArrayList<String> minConnectionsHostList = new ArrayList<>();
     for (String h : hostToNumConnMap.keySet()) {
       if (failedHosts.contains(h)) continue;
       int currLoad = hostToNumConnMap.get(h);
       if (currLoad < min) {
         min = currLoad;
-        minHostList.clear();
-        minHostList.add(h);
+        minConnectionsHostList.clear();
+        minConnectionsHostList.add(h);
       } else if (currLoad == min) {
-        minHostList.add(h);
+        minConnectionsHostList.add(h);
       }
     }
     // Choose a random from the minimum list
     String chosenHost = null;
-    if (minHostList.size() > 0) {
+    if (minConnectionsHostList.size() > 0) {
       Random rand = new Random();
-      chosenHost = minHostList.get(rand.nextInt(minHostList.size()));
+      chosenHost = minConnectionsHostList.get(rand.nextInt(minConnectionsHostList.size()));
     }
     LOGGER.log(Level.INFO, "Host chosen for new connection: " + chosenHost);
     return chosenHost;
