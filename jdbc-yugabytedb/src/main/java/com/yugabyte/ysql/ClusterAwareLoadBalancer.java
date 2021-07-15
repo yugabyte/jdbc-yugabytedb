@@ -38,16 +38,26 @@ public class ClusterAwareLoadBalancer {
   }
 
   public String getLeastLoadedServer(List<String> failedHosts) {
-    String chosenHost = null;
     int min = Integer.MAX_VALUE;
+    ArrayList<String> minConnectionsHostList = new ArrayList<>();
     for (String h : hostToNumConnMap.keySet()) {
       if (failedHosts.contains(h)) continue;
       int currLoad = hostToNumConnMap.get(h);
       if (currLoad < min) {
-        chosenHost = h;
         min = currLoad;
+        minConnectionsHostList.clear();
+        minConnectionsHostList.add(h);
+      } else if (currLoad == min) {
+        minConnectionsHostList.add(h);
       }
     }
+    // Choose a random from the minimum list
+    String chosenHost = null;
+    if (minConnectionsHostList.size() > 0) {
+      Random rand = new Random();
+      chosenHost = minConnectionsHostList.get(rand.nextInt(minConnectionsHostList.size()));
+    }
+    LOGGER.log(Level.INFO, "Host chosen for new connection: " + chosenHost);
     return chosenHost;
   }
 
@@ -67,7 +77,7 @@ public class ClusterAwareLoadBalancer {
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
-    LOGGER.log(Level.FINE, "Getting the list of servers");
+    LOGGER.log(Level.INFO, "Getting the list of servers");
     ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
     ArrayList<String> currentPrivateIps = new ArrayList<>();
     ArrayList<String> currentPublicIps = new ArrayList<>();
@@ -97,7 +107,7 @@ public class ClusterAwareLoadBalancer {
       return null;
     }
     ArrayList<String> currentHosts = useHostColumn ? privateHosts : publicHosts;
-    LOGGER.log(Level.FINE, "List of servers got {0}", currentHosts);
+    LOGGER.log(Level.INFO, "List of servers got {0}", currentHosts);
     return currentHosts;
   }
 
