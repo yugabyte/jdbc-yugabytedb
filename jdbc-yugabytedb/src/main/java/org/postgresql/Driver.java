@@ -486,7 +486,7 @@ public class Driver implements java.sql.Driver {
         hspec, user(lbprops.getOriginalProperties()),
           database(lbprops.getOriginalProperties()), props, url);
       try {
-        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
+        LOGGER.log(Level.INFO, "refreshing server list from {0}", hspec[0].getHost());
         if (!loadBalancer.refresh(controlConnection)) {
           return null;
         }
@@ -711,6 +711,15 @@ public class Driver implements java.sql.Driver {
       }
     }
 
+    // Check for new load balance properties
+    if (defaults != null) {
+      if (defaults.containsKey("load-balance")) {
+        urlProps.setProperty("load-balance", defaults.getProperty("load-balance"));
+      }
+      if (defaults.containsKey("topology-keys")) {
+        urlProps.setProperty("topology-keys", defaults.getProperty("topology-keys"));
+      }
+    }
     return urlProps;
   }
 
