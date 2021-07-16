@@ -1,4 +1,3 @@
-
 # YugabyteDB JDBC Driver
 This is a distributed JDBC driver for YugabyteDB SQL. This driver is based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
 
@@ -29,16 +28,16 @@ Please refer to the [Use the Driver](#Use the Driver) section for examples.
 
 ### From Maven
 
-Add the following lines to your maven project.
-
+Either add the following lines to your maven project in pom.xml file.
 ```
 <dependency>
   <groupId>com.yugabyte</groupId>
   <artifactId>jdbc-yugabytedb</artifactId>
-  <version>42.2.7-yb-5</version>
+  <version>42.2.7-yb-5-beta.1</version>
 </dependency>
 ```
 
+or you can visit to this link for the latest version of dependency: https://search.maven.org/artifact/com.yugabyte/jdbc-yugabytedb
 
 ### Build locally
 
@@ -68,21 +67,22 @@ Add the following lines to your maven project.
     <dependency>
         <groupId>com.yugabyte</groupId>
         <artifactId>jdbc-yugabytedb</artifactId>
-        <version>42.2.7-yb-5-SNAPSHOT</version>
+        <version>42.2.7-yb-6-SNAPSHOT</version>
     </dependency> 
     ```
+####Note: You need to have installed 2.7.2.0-b0 or above version of YugabyteDB on your system for load balancing to work.
 
 ## Use the Driver
 
 - Passing new connection properties for load balancing in connection url or properties bag
-  
+
   For uniform load balancing across all the server you just need to specify the _load-balance=true_ property in the url.
     ```
     String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
     DriverManager.getConnection(yburl);
     ```
 
-  For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_. 
+  For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_.
 
     ```
     String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
@@ -106,7 +106,7 @@ Add the following lines to your maven project.
     ```
 
 - Create and setup the DataSource with a popular pooling solution like Hikari
-    
+
     ```
     Properties poolProperties = new Properties();
     poolProperties.setProperty("dataSourceClassName", "com.yugabyte.ysql.YBClusterAwareDataSource");
