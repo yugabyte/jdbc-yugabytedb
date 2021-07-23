@@ -8,12 +8,12 @@ Sample JDBC application using the cluster-aware https://github.com/yugabyte/jdbc
 === 1. Install YugabyteDB
 
 You need to install YugabyteDB on your system. If you have YugabyteDB already installed then check its version.
-It should be 2.7.2.0-b0 or above version of YugabyteDB to run these load balancing examples apps.
+It should be the latest version of YugabyteDB to run these load balancing examples apps.
 
 === 2. Build the demo examples
 Run `mvn package` before starting the `run` script
 
-Note: Before executing the script, make sure either you have locally build and install the 'jdbc-yugabytedb' project on your system or you can visit https://search.maven.org/artifact/com.yugabyte/jdbc-yugabytedb and replace the latest dependency with the existing one in pom.xml 
+Note: Before executing the script, make sure either you have locally build and install the 'jdbc-yugabytedb' project on your system or you can visit the https://search.maven.org/artifact/com.yugabyte/jdbc-yugabytedb[maven central repository] and replace the latest dependency from there with the existing one in pom.xml 
 
 === 3. Run this script for a demo
 Once you have YugaByteDB installed in your system, then for a demo you just need to run this script.
@@ -32,7 +32,7 @@ where
  -i is for INTERACTIVE mode
  and `<path/to/yugabyte/installation/>` is the path to the directory where yugabyte was installed in step 1.
 
-for example: `./run.sh -v -i -D ~/yugabyte-2.7.2.0/`
+for example: `./run.sh -v -i -D ~/yugabyte-db/`
 
 This script will first show you a menu, from where you will have to select the option based on which example you want to run among UniformLoadBalance and TopologyAwareLoadBalance.
 Then the corresponding script will start running with its java app in background.

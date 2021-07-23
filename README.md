@@ -37,7 +37,7 @@ Either add the following lines to your maven project in pom.xml file.
 </dependency>
 ```
 
-or you can visit to this link for the latest version of dependency: https://search.maven.org/artifact/com.yugabyte/jdbc-yugabytedb
+or you can visit to [maven central repository](https://search.maven.org/artifact/com.yugabyte/jdbc-yugabytedb) for the latest version of dependency
 
 ### Build locally
 
@@ -70,7 +70,7 @@ or you can visit to this link for the latest version of dependency: https://sear
         <version>42.2.7-yb-6-SNAPSHOT</version>
     </dependency> 
     ```
-####Note: You need to have installed 2.7.2.0-b0 or above version of YugabyteDB on your system for load balancing to work.
+####Note: You need to have installed the latest version of YugabyteDB on your system for load balancing to work.
 
 ## Use the Driver
 
