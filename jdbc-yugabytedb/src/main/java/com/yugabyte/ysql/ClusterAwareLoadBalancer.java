@@ -17,7 +17,7 @@ public class ClusterAwareLoadBalancer {
   Map<String, Integer> hostToNumConnMap = new HashMap<>();
   Set<String> unreachableHosts = new HashSet<>();
   protected Map<String, String> hostPortMap = new HashMap<>();
-  protected Map<String, String> pubHostPortMap = new HashMap<>();
+  protected Map<String, String> hostPortMap_public = new HashMap<>();
 
   public static ClusterAwareLoadBalancer instance() {
     return instance;
@@ -40,7 +40,7 @@ public class ClusterAwareLoadBalancer {
   public String getPort(String host) {
     String port = hostPortMap.get(host);
     if (port == null) {
-      port = pubHostPortMap.get(host);
+      port = hostPortMap_public.get(host);
     }
     return port;
   }
@@ -99,7 +99,7 @@ public class ClusterAwareLoadBalancer {
       String public_host = rs.getString("public_ip");
       String port = rs.getString("port");
       hostPortMap.put(host, port);
-      pubHostPortMap.put(public_host, port);
+      hostPortMap_public.put(public_host, port);
       currentPrivateIps.add(host);
       currentPublicIps.add(public_host);
       if (hostConnectedTo.equals(host)) {
