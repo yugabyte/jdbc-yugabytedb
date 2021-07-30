@@ -19,7 +19,7 @@
   <parent>
     <groupId>com.yugabyte</groupId>
     <artifactId>jdbc-yugabytedb-aggregate</artifactId>
-    <version>42.2.7-yb-6</version>
+    <version>42.2.7-yb-6-SNAPSHOT</version>
   </parent>
 
   <artifactId>jdbc-yugabytedb</artifactId>
