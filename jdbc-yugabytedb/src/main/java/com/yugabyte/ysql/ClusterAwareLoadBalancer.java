@@ -1,7 +1,5 @@
 package com.yugabyte.ysql;
 
-import org.postgresql.PGConnection;
-import org.postgresql.core.v3.QueryExecutorImpl;
 import org.postgresql.jdbc.PgConnection;
 
 import java.sql.*;
@@ -18,6 +16,8 @@ public class ClusterAwareLoadBalancer {
   private volatile ArrayList<String> servers = null;
   Map<String, Integer> hostToNumConnMap = new HashMap<>();
   Set<String> unreachableHosts = new HashSet<>();
+  protected Map<String, String> hostPortMap = new HashMap<>();
+  protected Map<String, String> hostPortMap_public = new HashMap<>();
 
   public static ClusterAwareLoadBalancer instance() {
     return instance;
@@ -35,6 +35,14 @@ public class ClusterAwareLoadBalancer {
       }
     }
     return instance;
+  }
+
+  public String getPort(String host) {
+    String port = hostPortMap.get(host);
+    if (port == null) {
+      port = hostPortMap_public.get(host);
+    }
+    return port;
   }
 
   public String getLeastLoadedServer(List<String> failedHosts) {
@@ -57,7 +65,7 @@ public class ClusterAwareLoadBalancer {
       Random rand = new Random();
       chosenHost = minConnectionsHostList.get(rand.nextInt(minConnectionsHostList.size()));
     }
-    LOGGER.log(Level.INFO, "Host chosen for new connection: " + chosenHost);
+    LOGGER.log(Level.FINE, "Host chosen for new connection: " + chosenHost);
     return chosenHost;
   }
 
@@ -77,7 +85,6 @@ public class ClusterAwareLoadBalancer {
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
-    LOGGER.log(Level.INFO, "Getting the list of servers");
     ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
     ArrayList<String> currentPrivateIps = new ArrayList<>();
     ArrayList<String> currentPublicIps = new ArrayList<>();
@@ -90,6 +97,9 @@ public class ClusterAwareLoadBalancer {
     while (rs.next()) {
       String host = rs.getString("host");
       String public_host = rs.getString("public_ip");
+      String port = rs.getString("port");
+      hostPortMap.put(host, port);
+      hostPortMap_public.put(public_host, port);
       currentPrivateIps.add(host);
       currentPublicIps.add(public_host);
       if (hostConnectedTo.equals(host)) {
@@ -107,7 +117,7 @@ public class ClusterAwareLoadBalancer {
       return null;
     }
     ArrayList<String> currentHosts = useHostColumn ? privateHosts : publicHosts;
-    LOGGER.log(Level.INFO, "List of servers got {0}", currentHosts);
+    LOGGER.log(Level.FINE, "List of servers got {0}", currentHosts);
     return currentHosts;
   }
 

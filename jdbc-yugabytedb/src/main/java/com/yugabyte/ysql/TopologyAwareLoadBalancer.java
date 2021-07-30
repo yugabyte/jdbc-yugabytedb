@@ -57,6 +57,9 @@ public class TopologyAwareLoadBalancer extends ClusterAwareLoadBalancer {
       String publicIp = rs.getString("public_ip");
       String region = rs.getString("region");
       String zone = rs.getString("zone");
+      String port = rs.getString("port");
+      hostPortMap.put(host, port);
+      hostPortMap_public.put(publicIp, port);
       Set<String> zones = allowedPlacements.get(region);
       if (hostConnectedTo.equals(host)) {
         useHostColumn = Boolean.TRUE;

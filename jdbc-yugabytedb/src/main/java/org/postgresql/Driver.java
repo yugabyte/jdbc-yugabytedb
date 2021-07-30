@@ -486,7 +486,7 @@ public class Driver implements java.sql.Driver {
         hspec, user(lbprops.getOriginalProperties()),
           database(lbprops.getOriginalProperties()), props, url);
       try {
-        LOGGER.log(Level.INFO, "refreshing server list from {0}", hspec[0].getHost());
+        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
         if (!loadBalancer.refresh(controlConnection)) {
           return null;
         }
@@ -508,6 +508,10 @@ public class Driver implements java.sql.Driver {
     while (chosenHost != null) {
       try {
         props.setProperty("PGHOST", chosenHost);
+        String port = loadBalancer.getPort(chosenHost);
+        if (port != null) {
+          props.setProperty("PGPORT", port);
+        }
         newConnection = new PgConnection(
           hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
         ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
