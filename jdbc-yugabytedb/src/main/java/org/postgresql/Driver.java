@@ -508,6 +508,10 @@ public class Driver implements java.sql.Driver {
     while (chosenHost != null) {
       try {
         props.setProperty("PGHOST", chosenHost);
+        String port = loadBalancer.getPort(chosenHost);
+        if (port != null) {
+          props.setProperty("PGPORT", port);
+        }
         newConnection = new PgConnection(
           hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
         ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
