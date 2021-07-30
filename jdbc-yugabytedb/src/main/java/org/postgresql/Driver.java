@@ -486,7 +486,7 @@ public class Driver implements java.sql.Driver {
         hspec, user(lbprops.getOriginalProperties()),
           database(lbprops.getOriginalProperties()), props, url);
       try {
-        LOGGER.log(Level.INFO, "refreshing server list from {0}", hspec[0].getHost());
+        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
         if (!loadBalancer.refresh(controlConnection)) {
           return null;
         }
