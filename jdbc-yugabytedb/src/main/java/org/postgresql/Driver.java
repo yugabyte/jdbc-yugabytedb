@@ -463,10 +463,10 @@ public class Driver implements java.sql.Driver {
         return conn;
       }
       LOGGER.log(Level.WARNING, "Failed to apply load balance. Trying normal connection");
-      // but remember to use stripped url and props
-      url = lbprops.getStrippedURL();
-      properties = lbprops.getStrippedProperties();
     }
+    // Cleanup extra properties used for load balancing
+    url = lbprops.getStrippedURL();
+    properties = lbprops.getStrippedProperties();
     return new PgConnection(hostSpecs(properties), user(properties), database(properties), properties, url);
   }
 

@@ -3,6 +3,7 @@ package com.yugabyte.ysql;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class LoadBalanceProperties {
@@ -47,12 +48,20 @@ public class LoadBalanceProperties {
       }
       if (part.startsWith(load_balancer_key)) {
         String[] lb_parts = part.split(EQUALS);
+        if (lb_parts.length < 2) {
+          LOGGER.log(Level.WARNING, "No value provided for load balance property. Ignoring it.");
+          continue;
+        }
         String propValue = lb_parts[1];
         if (propValue.equalsIgnoreCase("true")) {
           this.hasLoadBalance = true;
         }
       } else if (part.startsWith(topology_key)) {
         String[] lb_parts = part.split(EQUALS);
+        if (lb_parts.length < 2) {
+          LOGGER.log(Level.WARNING, "No value provided for topology keys. Ignoring it.");
+          continue;
+        }
         placements = lb_parts[1];
       } else {
         sb.append('&');

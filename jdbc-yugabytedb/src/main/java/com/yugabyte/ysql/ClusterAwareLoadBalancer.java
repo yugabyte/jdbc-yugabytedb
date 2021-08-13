@@ -1,7 +1,12 @@
 package com.yugabyte.ysql;
 
 import org.postgresql.jdbc.PgConnection;
+import org.postgresql.util.GT;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
@@ -89,11 +94,22 @@ public class ClusterAwareLoadBalancer {
     ArrayList<String> currentPrivateIps = new ArrayList<>();
     ArrayList<String> currentPublicIps = new ArrayList<>();
     String hostConnectedTo = ((PgConnection)conn).getQueryExecutor().getHostSpec().getHost();
+    InetAddress hostConnectedInetAddr;
+
     Boolean useHostColumn = null;
     boolean isIpv6Addresses = hostConnectedTo.contains(":");
     if (isIpv6Addresses) {
       hostConnectedTo = hostConnectedTo.replace("[", "").replace("]", "");
     }
+
+    try {
+      hostConnectedInetAddr = InetAddress.getByName(hostConnectedTo);
+    } catch (UnknownHostException e) {
+      // This is totally unexpected. As the connection is already created on this host
+      throw new PSQLException(GT.tr("Unexpected UnknownHostException for ${0} ", hostConnectedTo),
+        PSQLState.UNKNOWN_STATE, e);
+    }
+
     while (rs.next()) {
       String host = rs.getString("host");
       String public_host = rs.getString("public_ip");
@@ -102,16 +118,34 @@ public class ClusterAwareLoadBalancer {
       hostPortMap_public.put(public_host, port);
       currentPrivateIps.add(host);
       currentPublicIps.add(public_host);
-      if (hostConnectedTo.equals(host)) {
-        useHostColumn = Boolean.TRUE;
-      } else if (hostConnectedTo.equals(public_host)) {
-        useHostColumn = Boolean.FALSE;
+      InetAddress hostInetAddr;
+      InetAddress publicHostInetAddr;
+      try {
+        hostInetAddr = InetAddress.getByName(host);
+      } catch (UnknownHostException e) {
+        // set the hostInet to null
+        hostInetAddr = null;
+      }
+      try {
+        publicHostInetAddr = !public_host.isEmpty()
+          ? InetAddress.getByName(public_host) : null;
+      } catch (UnknownHostException e) {
+        // set the publicHostInetAddr to null
+        publicHostInetAddr = null;
+      }
+      if (useHostColumn == null) {
+        if (hostConnectedInetAddr.equals(hostInetAddr)) {
+          useHostColumn = Boolean.TRUE;
+        } else if (hostConnectedInetAddr.equals(publicHostInetAddr)) {
+          useHostColumn = Boolean.FALSE;
+        }
       }
     }
     return getPrivateOrPublicServers(useHostColumn, currentPrivateIps, currentPublicIps);
   }
 
-  protected ArrayList<String> getPrivateOrPublicServers(Boolean useHostColumn, ArrayList<String> privateHosts, ArrayList<String> publicHosts) {
+  protected ArrayList<String> getPrivateOrPublicServers(
+    Boolean useHostColumn, ArrayList<String> privateHosts, ArrayList<String> publicHosts) {
     if (useHostColumn == null) {
       LOGGER.log(Level.WARNING, "Either private or public should have been determined");
       return null;
