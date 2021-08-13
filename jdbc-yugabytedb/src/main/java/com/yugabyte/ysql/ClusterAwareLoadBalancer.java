@@ -95,23 +95,21 @@ public class ClusterAwareLoadBalancer {
     ArrayList<String> currentPublicIps = new ArrayList<>();
     String hostConnectedTo = ((PgConnection)conn).getQueryExecutor().getHostSpec().getHost();
     InetAddress hostConnectedInetAddr;
-    try {
-      hostConnectedInetAddr = InetAddress.getByName(hostConnectedTo);
-    } catch (UnknownHostException e) {
-      throw new SQLException();
-    }
+
     Boolean useHostColumn = null;
     boolean isIpv6Addresses = hostConnectedTo.contains(":");
     if (isIpv6Addresses) {
       hostConnectedTo = hostConnectedTo.replace("[", "").replace("]", "");
-      try {
-        hostConnectedInetAddr = InetAddress.getByName(hostConnectedTo);
-      } catch (UnknownHostException e) {
-        // This is totally unexpected. As the connection is already created on this host
-        throw new PSQLException(GT.tr("Unexpected UnknownHostException for ${0} ", hostConnectedTo),
-          PSQLState.UNKNOWN_STATE, e);
-      }
     }
+
+    try {
+      hostConnectedInetAddr = InetAddress.getByName(hostConnectedTo);
+    } catch (UnknownHostException e) {
+      // This is totally unexpected. As the connection is already created on this host
+      throw new PSQLException(GT.tr("Unexpected UnknownHostException for ${0} ", hostConnectedTo),
+        PSQLState.UNKNOWN_STATE, e);
+    }
+
     while (rs.next()) {
       String host = rs.getString("host");
       String public_host = rs.getString("public_ip");
