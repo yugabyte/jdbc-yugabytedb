@@ -121,15 +121,14 @@ public class ClusterAwareLoadBalancer {
       InetAddress hostInetAddr;
       InetAddress publicHostInetAddr;
       try {
-        hostInetAddr = (host != null
-          && !host.isEmpty()) ? InetAddress.getByName(host) : null;
+        hostInetAddr = InetAddress.getByName(host);
       } catch (UnknownHostException e) {
         // set the hostInet to null
         hostInetAddr = null;
       }
       try {
-        publicHostInetAddr = (public_host != null
-          && !public_host.isEmpty()) ? InetAddress.getByName(public_host) : null;
+        publicHostInetAddr = !public_host.isEmpty()
+          ? InetAddress.getByName(public_host) : null;
       } catch (UnknownHostException e) {
         // set the publicHostInetAddr to null
         publicHostInetAddr = null;
