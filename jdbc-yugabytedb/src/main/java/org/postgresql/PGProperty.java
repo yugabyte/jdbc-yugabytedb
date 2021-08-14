@@ -421,7 +421,7 @@ public enum PGProperty {
   YB_LOAD_BALANCE("load-balance", "false",
     "Load Balance connections across multiple tservers"),
 
-  YB_TOPOLOGY_KEYS("topology-keys", "",
+  YB_TOPOLOGY_KEYS("topology-keys", null,
     "Load Balance connections only in the given topolgies"),
 
   /**
