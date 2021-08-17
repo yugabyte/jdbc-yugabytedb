@@ -1319,7 +1319,7 @@ public class PreparedStatementTest extends BaseTest4 {
   }
 
   @Test
-  public void testBatchWithPrepareThreshold5() throws SQLException {
+  public void testBatchWithPrepareThreshold1() throws SQLException {
     assumeBinaryModeRegular();
     Assume.assumeTrue("simple protocol only does not support prepared statement requests",
         preferQueryMode != PreferQueryMode.SIMPLE);
@@ -1331,7 +1331,7 @@ public class PreparedStatementTest extends BaseTest4 {
     // When using a prepareThreshold of 5, a batch update should use server-side prepare
     pstmt = con.prepareStatement("INSERT INTO batch_tab_threshold5 (id, val) VALUES (?,?)");
     ((PgStatement) pstmt).setPrepareThreshold(5);
-    for (int p = 0; p < 5; p++) {
+    for (int p = 0; p < 1; p++) {
       for (int i = 0; i <= 5; i++) {
         pstmt.setLong(1, i);
         pstmt.setLong(2, i);
@@ -1340,9 +1340,9 @@ public class PreparedStatementTest extends BaseTest4 {
       pstmt.executeBatch();
     }
     pstmt.close();
-    assertTrue("prepareThreshold=5, so the statement should be server-prepared",
+    assertTrue("prepareThreshold=1, so the statement should be server-prepared",
         ((PGStatement) pstmt).isUseServerPrepare());
-    assertEquals("prepareThreshold=5, so the statement should be server-prepared", 1,
+    assertEquals("prepareThreshold=1, so the statement should be server-prepared", 1,
         getNumberOfServerPreparedStatements("INSERT INTO batch_tab_threshold5 (id, val) VALUES ($1,$2)"));
   }
 
