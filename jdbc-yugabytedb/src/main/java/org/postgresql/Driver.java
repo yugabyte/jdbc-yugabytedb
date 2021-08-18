@@ -517,7 +517,7 @@ public class Driver implements java.sql.Driver {
         newConnection.setLoadBalancer(loadBalancer);
         if (!loadBalancer.refresh(newConnection)) {
           // There seems to be a problem with the current chosen host as well.
-          // Close the connection and return null
+          // Close the connection and try next
           LOGGER.log(Level.WARNING, "yb_servers() refresh returned no servers");
           loadBalancer.updateConnectionMap(chosenHost, -1);
           failedHosts.add(chosenHost);
