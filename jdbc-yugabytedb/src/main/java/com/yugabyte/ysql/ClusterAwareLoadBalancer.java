@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,12 +51,13 @@ public class ClusterAwareLoadBalancer {
     return port;
   }
 
-  public String getLeastLoadedServer(List<String> failedHosts) {
+  public synchronized String getLeastLoadedServer(List<String> failedHosts) {
     int min = Integer.MAX_VALUE;
     ArrayList<String> minConnectionsHostList = new ArrayList<>();
     for (String h : hostToNumConnMap.keySet()) {
       if (failedHosts.contains(h)) continue;
       int currLoad = hostToNumConnMap.get(h);
+      // System.out.println("Current load for host: " + h + " is " + currLoad);
       if (currLoad < min) {
         min = currLoad;
         minConnectionsHostList.clear();
@@ -67,8 +69,11 @@ public class ClusterAwareLoadBalancer {
     // Choose a random from the minimum list
     String chosenHost = null;
     if (minConnectionsHostList.size() > 0) {
-      Random rand = new Random();
-      chosenHost = minConnectionsHostList.get(rand.nextInt(minConnectionsHostList.size()));
+      int idx = ThreadLocalRandom.current().nextInt(0, minConnectionsHostList.size());
+      chosenHost = minConnectionsHostList.get(idx);
+    }
+    if (chosenHost != null) {
+      updateConnectionMap(chosenHost, 1);
     }
     LOGGER.log(Level.FINE, "Host chosen for new connection: " + chosenHost);
     return chosenHost;
@@ -198,6 +203,10 @@ public class ClusterAwareLoadBalancer {
 
   protected String loadBalancingNodes() {
     return "all";
+  }
+
+  public void setForRefresh() {
+    lastServerListFetchTime = 0L;
   }
 
   public void printHostToConnMap() {

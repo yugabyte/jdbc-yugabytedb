@@ -477,8 +477,8 @@ public class Driver implements java.sql.Driver {
     Set<String> unreachableHosts = loadBalancer.getUnreachableHosts();
     List<String> failedHosts = new ArrayList<>(unreachableHosts);
     String chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
-    Connection newConnection = null;
-    Connection controlConnection = null;
+    PgConnection newConnection = null;
+    Connection controlConnection;
     SQLException firstException = null;
     if (chosenHost == null) {
       HostSpec[] hspec = hostSpecs(lbprops.getOriginalProperties());
@@ -486,8 +486,9 @@ public class Driver implements java.sql.Driver {
         hspec, user(lbprops.getOriginalProperties()),
           database(lbprops.getOriginalProperties()), props, url);
       try {
-        LOGGER.log(Level.FINE, "refreshing server list from {0}", hspec[0].getHost());
         if (!loadBalancer.refresh(controlConnection)) {
+          LOGGER.log(Level.WARNING, "yb_servers() refresh failed in first" +
+            " attempt itself. Falling back to default behaviour");
           return null;
         }
         controlConnection.close();
@@ -503,8 +504,7 @@ public class Driver implements java.sql.Driver {
       return null;
     }
     // refresh can also fail on a particular server so try in loop till
-    // options exhausted
-    boolean connectionCreated = false;
+    // options are exhausted
     while (chosenHost != null) {
       try {
         props.setProperty("PGHOST", chosenHost);
@@ -514,13 +514,23 @@ public class Driver implements java.sql.Driver {
         }
         newConnection = new PgConnection(
           hostSpecs(props), user(lbprops.getOriginalProperties()), database(props), props, url);
-        ((PgConnection) newConnection).setLoadBalancer(loadBalancer);
-        connectionCreated = true;
-        if (loadBalancer.refresh(newConnection)) {
-          loadBalancer.updateConnectionMap(chosenHost, 1);
-          return newConnection;
-        } else {
+        newConnection.setLoadBalancer(loadBalancer);
+        if (!loadBalancer.refresh(newConnection)) {
+          // There seems to be a problem with the current chosen host as well.
+          // Close the connection and return null
+          LOGGER.log(Level.WARNING, "yb_servers() refresh returned no servers");
+          loadBalancer.updateConnectionMap(chosenHost, -1);
           failedHosts.add(chosenHost);
+          // but let the refresh be forced the next time it is tried.
+          loadBalancer.setForRefresh();
+          try {
+            newConnection.close();
+          } catch (Exception e) {
+            // ignore as exception is expected. This close is for any other cleanup
+            // which the driver side may be doing
+          }
+        } else {
+          return newConnection;
         }
       } catch (PSQLException ex) {
         if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
@@ -529,17 +539,19 @@ public class Driver implements java.sql.Driver {
           }
           // TODO log exception go to the next one after adding to failed list
           LOGGER.log(Level.WARNING,
-            "couldn't connect to {0}, adding to failed host list", chosenHost);
+            "couldn't connect to " + chosenHost + ", adding it to failed host list");
           failedHosts.add(chosenHost);
           loadBalancer.updateFailedHosts(chosenHost);
-          if (connectionCreated) {
-            // ignore refresh. return the connection after updating map
-            loadBalancer.updateConnectionMap(chosenHost, 1);
-            return newConnection;
+          // close the connection for any cleanup. We can ignore the exception here
+          try {
+            newConnection.close();
+          } catch (Exception e) {
+            // ignore as the connection is already bad that's why we are here. Calling
+            // close so that client side cleanup can happen.
           }
-          chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
         }
       }
+      chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     }
     throw firstException;
   }
