@@ -33,7 +33,7 @@ Either add the following lines to your maven project in pom.xml file.
 <dependency>
   <groupId>com.yugabyte</groupId>
   <artifactId>jdbc-yugabytedb</artifactId>
-  <version>42.2.7-yb-5-beta.1</version>
+  <version>42.2.7-yb-5-beta.5</version>
 </dependency>
 ```
 
@@ -82,10 +82,10 @@ or you can visit to this link for the latest version of dependency: https://sear
     DriverManager.getConnection(yburl);
     ```
 
-  For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=cloud1:region1:zone1,cloud1:region1.zone2_.
+  For specifying topology keys you need to set the additional property with a valid comma separated value, for example _topology-keys=region1.zone1,region1.zone2_.
 
     ```
-    String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=cloud1:region1:zone1,cloud1:region1.zone2";
+    String yburl = "jdbc:postgresql://127.0.0.1:5433/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&topology-keys=region1.zone1,region1.zone2";
     DriverManager.getConnection(yburl);
     ```
 
@@ -97,7 +97,7 @@ or you can visit to this link for the latest version of dependency: https://sear
     ds.setUrl(jdbcUrl);
     ds.setLoadBalance("true");
     // If topology aware distribution to be enabled then
-    ds.setTopologyKeys("cloud1.region1.zone1,cloud1.region2.zone2");
+    ds.setTopologyKeys("region1.zone1,region2.zone2");
     // If you want to provide more endpoints to safeguard against even first connection failure due
     to the possible unavailability of initial contact point.
     ds.setAdditionalEndpoints("127.0.0.2:5433,127.0.0.3:5433");
@@ -121,7 +121,7 @@ or you can visit to this link for the latest version of dependency: https://sear
     String additionalEndpoints = "127.0.0.2:5433,127.0.0.3:5433,127.0.0.4:5433,127.0.0.5:5433";
     poolProperties.setProperty("dataSource.additionalEndpoints", additionalEndpoints);
     // If you want to load balance between specific geo locations using topology keys
-    String geoLocations = "cloud1.region1.zone1,cloud1.region2.zone2";
+    String geoLocations = "region1.zone1,region2.zone2";
     poolProperties.setProperty("dataSource.topologyKeys", geoLocations);
 
     poolProperties.setProperty("poolName", name);

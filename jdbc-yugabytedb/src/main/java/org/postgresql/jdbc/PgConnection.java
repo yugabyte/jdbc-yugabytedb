@@ -145,11 +145,7 @@ public class PgConnection implements BaseConnection {
 
   private final LruCache<FieldMetadata.Key, FieldMetadata> fieldMetadataCache;
 
-  private static volatile PgConnection controlConnection = null;
   private ClusterAwareLoadBalancer loadBalancer;
-
-  public static void createControlConnection(String url, Properties props) {
-  }
 
   final CachedQuery borrowQuery(String sql) throws SQLException {
     return queryExecutor.borrowQuery(sql);
