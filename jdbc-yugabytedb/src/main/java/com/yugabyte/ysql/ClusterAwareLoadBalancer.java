@@ -75,7 +75,7 @@ public class ClusterAwareLoadBalancer {
     if (chosenHost != null) {
       updateConnectionMap(chosenHost, 1);
     }
-    LOGGER.log(Level.FINE, "Host chosen for new connection: " + chosenHost);
+    LOGGER.log(Level.FINE, getLoadBalancerType() + ": Host chosen for new connection: " + chosenHost);
     return chosenHost;
   }
 
@@ -84,17 +84,28 @@ public class ClusterAwareLoadBalancer {
   public static boolean FORCE_REFRESH = false;
 
   public boolean needsRefresh() {
-    if (FORCE_REFRESH) return true;
+    if (FORCE_REFRESH) {
+      LOGGER.log(Level.FINE, getLoadBalancerType() + ": Force Refresh is set to true");
+      return true;
+    }
     long currentTimeInMillis = System.currentTimeMillis();
     long diff = (currentTimeInMillis - lastServerListFetchTime) / 1000;
     boolean firstTime = servers == null;
-    return (firstTime || diff > REFRESH_LIST_SECONDS);
+    if (firstTime || diff > REFRESH_LIST_SECONDS) {
+      LOGGER.log(Level.FINE, getLoadBalancerType() + ": " +
+        "Needs refresh as list of servers may be stale or being fetched for the first time");
+      return true;
+    }
+    LOGGER.log(Level.FINE, getLoadBalancerType() + ": Refresh not required.");
+    return false;
   }
 
   protected static String columnToUseForHost = null;
 
   protected ArrayList<String> getCurrentServers(Connection conn) throws SQLException {
     Statement st = conn.createStatement();
+    LOGGER.log(Level.FINE, getLoadBalancerType() + ": Executing query: "
+      + GET_SERVERS_QUERY + " to fetch list of servers");
     ResultSet rs = st.executeQuery(GET_SERVERS_QUERY);
     ArrayList<String> currentPrivateIps = new ArrayList<>();
     ArrayList<String> currentPublicIps = new ArrayList<>();
@@ -152,12 +163,16 @@ public class ClusterAwareLoadBalancer {
   protected ArrayList<String> getPrivateOrPublicServers(
     Boolean useHostColumn, ArrayList<String> privateHosts, ArrayList<String> publicHosts) {
     if (useHostColumn == null) {
-      LOGGER.log(Level.WARNING, "Either private or public should have been determined");
+      LOGGER.log(Level.WARNING, getLoadBalancerType() + ": Either private or public should have been determined");
       return null;
     }
     ArrayList<String> currentHosts = useHostColumn ? privateHosts : publicHosts;
-    LOGGER.log(Level.FINE, "List of servers got {0}", currentHosts);
+    LOGGER.log(Level.FINE, getLoadBalancerType() + ": List of servers got {0}", currentHosts);
     return currentHosts;
+  }
+
+  protected String getLoadBalancerType() {
+    return "ClusterAwareLoadBalancer";
   }
 
   public synchronized boolean refresh(Connection conn) throws SQLException {
@@ -181,7 +196,7 @@ public class ClusterAwareLoadBalancer {
   }
 
   public synchronized void updateConnectionMap(String host, int incDec) {
-    LOGGER.log(Level.FINE, "updating connection count for {0} by {1}",
+    LOGGER.log(Level.FINE, getLoadBalancerType() + ": updating connection count for {0} by {1}",
       new String[]{host, String.valueOf(incDec)});
     Integer currentCount = hostToNumConnMap.get(host);
     if (currentCount == 0 && incDec < 0) return;
