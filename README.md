@@ -1,4 +1,4 @@
-# YugabyteDB JDBC Driver
+# YugabyteDB JDBC Driver [Deprecated] - Please consider using the new YugabyteDB JDBC Driver from https://github.com/yugabyte/pgjdbc
 This is a distributed JDBC driver for YugabyteDB SQL. This driver is based on the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
 
 ## Features
