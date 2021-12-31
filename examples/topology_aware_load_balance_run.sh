@@ -59,7 +59,8 @@ interact() {
 
 VERBOSE=$1
 INTERACTIVE=$2
-INSTALL_DIR=$3
+DEBUG=$3
+INSTALL_DIR=$4
 
 verbosePrint $VERBOSE "Destroying any exsiting cluster if present..."
 $INSTALL_DIR/bin/yb-ctl destroy  > yb-ctl.log 2>&1
@@ -77,7 +78,7 @@ rm -rf .notify_shell_script
 
 classpath=target/jdbc-yugabytedb-example-0.0.1-SNAPSHOT.jar
 #Starting the Topology Aware Load Balance Example app
-java -cp $classpath com.yugabyte.examples.TopologyAwareLoadBalanceExample $VERBOSE $INTERACTIVE  2>&1  &
+java -cp $classpath com.yugabyte.examples.TopologyAwareLoadBalanceExample $VERBOSE $INTERACTIVE $DEBUG 2>&1  &
 # java -cp $classpath com.yugabyte.examples.TopologyAwareLoadBalance $VERBOSE $INTERACTIVE > jdbc-yugabytedb-example.log 2>&1  &
 
 #storing the pid of the java app

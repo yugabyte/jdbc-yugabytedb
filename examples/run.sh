@@ -10,28 +10,33 @@ verbosePrint() {
 
 usage() {
           echo
-          echo "Usage: $0 [-v] [-i] [-h] -D <path/to/yugabyte/installation/>" 1>&2;
+          echo "Usage: $0 [-v] [-i] [-h] [-d] -D <path_to_yugabyte_installation>" 1>&2;
           echo 
           echo "-v - Run in verbose mode"
           echo "-i - Run in interactive mode"
           echo "-h - Print the help for this script"
           echo "-D - The installation directory of YugabyteDB"
+          echo "-d - Set log-level to 'debug' for driver"
           echo
           exit 1;
         }              
 
-VERBOSE=0                                                 
+VERBOSE=0
+DEBUG=0
 INTERACTIVE=0                                               
 INSTALL_DIR=""
 
-while getopts ":vihD:" o; do                                        
+while getopts ":vihdD:" o; do
   case "$o" in                                             
     v)                                                 
       VERBOSE=1                                           
       ;;                                               
     i)                                                 
       INTERACTIVE=1                                         
-      ;;                                               
+      ;;
+    d)
+      DEBUG=1
+      ;;
     h)                                                 
       usage
       ;;                                               
@@ -69,11 +74,11 @@ echo ""
 case $choice in
   1)
     verbosePrint $VERBOSE "starting the uniform_load_balance_run.sh script"
-    ./uniform_load_balance_run.sh $VERBOSE $INTERACTIVE $INSTALL_DIR
+    ./uniform_load_balance_run.sh $VERBOSE $INTERACTIVE $DEBUG $INSTALL_DIR
     ;;
   2) 
     verbosePrint $VERBOSE "starting the topology_aware_load_balance_run.sh script"
-    ./topology_aware_load_balance_run.sh $VERBOSE $INTERACTIVE $INSTALL_DIR
+    ./topology_aware_load_balance_run.sh $VERBOSE $INTERACTIVE $DEBUG $INSTALL_DIR
     ;;
   *)
     echo "INVALID OPTION"

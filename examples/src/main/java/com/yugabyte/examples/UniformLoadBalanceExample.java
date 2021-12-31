@@ -15,20 +15,27 @@ public class UniformLoadBalanceExample {
   protected static String controlUrl = "";
   protected static HikariDataSource hikariDataSource;
   protected static Scanner scanner = new Scanner(System.in);
-  protected static List<Connection> borrowConnections = new ArrayList<>();
+  protected static List<Connection> connectionsCreatedFroamApi = new ArrayList<>();
+  protected static boolean debugLogging = false;
 
   public static void main(String[] args) {
     int argsLen = args.length;
     Boolean verbose = argsLen > 0 ? args[0].equals("1") : Boolean.FALSE;
     Boolean interactive = argsLen > 1 ? args[1].equals("1") : Boolean.FALSE;
+    debugLogging = argsLen > 2 ? args[2].equals("1") : Boolean.FALSE;
     // Since it is just a demo app. Using some smaller values so that it can run
     // on laptop
     String numConnections = "6";
     String controlHost = "127.0.0.1";
     String controlPort = "5433";
 
-    controlUrl = "jdbc:postgresql://" + controlHost
-      + ":" + controlPort + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+    if (debugLogging) {
+      controlUrl = "jdbc:postgresql://" + controlHost
+        + ":" + controlPort + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true&loggerLevel=debug";
+    } else {
+      controlUrl = "jdbc:postgresql://" + controlHost
+        + ":" + controlPort + "/yugabyte?user=yugabyte&password=yugabyte&load-balance=true";
+    }
 
     System.out.println("Setting up the connection pool having 6 connections.......");
 
@@ -37,7 +44,7 @@ public class UniformLoadBalanceExample {
   }
 
   protected static void testUsingHikariPool(String poolName, String lbpropvalue, String lookupKey,
-                                            String hostName, String port, String numConnections, Boolean verbose, Boolean interactive) {
+      String hostName, String port, String numConnections, Boolean verbose, Boolean interactive) {
     try {
       String ds_yb = "com.yugabyte.ysql.YBClusterAwareDataSource";
 
@@ -46,6 +53,9 @@ public class UniformLoadBalanceExample {
       ClusterAwareLoadBalancer.FORCE_REFRESH = true;
 
       Properties poolProperties = new Properties();
+      if (debugLogging) {
+        poolProperties.setProperty("dataSource.loggerLevel", "DEBUG");
+      }
       poolProperties.setProperty("poolName", poolName);
       poolProperties.setProperty("dataSourceClassName", ds_yb);
       poolProperties.setProperty("maximumPoolSize", numConnections);
@@ -135,7 +145,7 @@ public class UniformLoadBalanceExample {
       if (hikariDataSource != null) {
         hikariDataSource.close();
       }
-      for (Connection connection : borrowConnections) {
+      for (Connection connection : connectionsCreatedFroamApi) {
         try {
           connection.close();
         } catch (SQLException exception) {
@@ -218,12 +228,12 @@ public class UniformLoadBalanceExample {
 
 
   protected static void makeSomeNewConnections(int new_connections) {
-    System.out.println("Creating " + new_connections + " new connections....");
+    System.out.println("Creating " + new_connections + " new connections.... with controlUrl: " + controlUrl);
     try {
       for (int i = 1; i <= new_connections; i++) {
         Connection connection = DriverManager.getConnection(controlUrl);
         runSomeSqlQueries(connection);
-        borrowConnections.add(connection);
+        connectionsCreatedFroamApi.add(connection);
       }
     } catch (SQLException throwables) {
       throwables.printStackTrace();

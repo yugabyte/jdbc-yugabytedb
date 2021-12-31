@@ -470,7 +470,8 @@ public class Driver implements java.sql.Driver {
     return new PgConnection(hostSpecs(properties), user(properties), database(properties), properties, url);
   }
 
-  private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) throws SQLException {
+  private static Connection getConnectionBalanced(LoadBalanceProperties lbprops) {
+    LOGGER.log(Level.FINE, "GetConnectionBalanced called");
     ClusterAwareLoadBalancer loadBalancer = lbprops.getAppropriateLoadBalancer();
     Properties props = lbprops.getStrippedProperties();
     String url = lbprops.getStrippedURL();
@@ -478,25 +479,36 @@ public class Driver implements java.sql.Driver {
     List<String> failedHosts = new ArrayList<>(unreachableHosts);
     String chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     PgConnection newConnection = null;
-    Connection controlConnection;
+    Connection controlConnection = null;
     SQLException firstException = null;
     if (chosenHost == null) {
-      HostSpec[] hspec = hostSpecs(lbprops.getOriginalProperties());
-      controlConnection = new PgConnection(
-        hspec, user(lbprops.getOriginalProperties()),
-          database(lbprops.getOriginalProperties()), props, url);
+      boolean connectionCreated = false;
+      boolean gotException = false;
       try {
+        HostSpec[] hspec = hostSpecs(lbprops.getOriginalProperties());
+        controlConnection = new PgConnection(
+          hspec, user(lbprops.getOriginalProperties()),
+          database(lbprops.getOriginalProperties()), props, url);
+        connectionCreated = true;
         if (!loadBalancer.refresh(controlConnection)) {
           LOGGER.log(Level.WARNING, "yb_servers() refresh failed in first" +
             " attempt itself. Falling back to default behaviour");
           return null;
         }
         controlConnection.close();
-      } catch (PSQLException ex) {
+      } catch (SQLException ex) {
         if (PSQLState.UNDEFINED_FUNCTION.getState().equals(ex.getSQLState())) {
           return null;
         }
-        throw ex;
+        gotException = true;
+      } finally {
+        if (gotException && connectionCreated) {
+          try {
+            controlConnection.close();
+          } catch (SQLException throwables) {
+            // ignore it was to be closed
+          }
+        }
       }
       chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     }
@@ -532,7 +544,15 @@ public class Driver implements java.sql.Driver {
         } else {
           return newConnection;
         }
-      } catch (PSQLException ex) {
+      } catch (SQLException ex) {
+        // close the connection for any cleanup. We can ignore the exception here
+        try {
+          newConnection.close();
+        } catch (Exception e) {
+          // ignore as the connection is already bad that's why we are here. Calling
+          // close so that client side cleanup can happen.
+        }
+        failedHosts.add(chosenHost);
         if (PSQLState.CONNECTION_UNABLE_TO_CONNECT.getState().equals(ex.getSQLState())) {
           if (firstException == null) {
             firstException = ex;
@@ -540,20 +560,19 @@ public class Driver implements java.sql.Driver {
           // TODO log exception go to the next one after adding to failed list
           LOGGER.log(Level.WARNING,
             "couldn't connect to " + chosenHost + ", adding it to failed host list");
-          failedHosts.add(chosenHost);
           loadBalancer.updateFailedHosts(chosenHost);
-          // close the connection for any cleanup. We can ignore the exception here
-          try {
-            newConnection.close();
-          } catch (Exception e) {
-            // ignore as the connection is already bad that's why we are here. Calling
-            // close so that client side cleanup can happen.
-          }
+        } else {
+          // Log the exception. Consider other failures as temporary and not as serious as
+          // PSQLState.CONNECTION_UNABLE_TO_CONNECT. So for other failures it will be ignored
+          // only in this attempt, instead of adding it in the failed host list of the
+          // load balancer itself because it won't be tried till the next refresh happens.
+          LOGGER.log(Level.WARNING,
+            "got exception " + ex.getMessage() + ", while connecting to " + chosenHost);
         }
       }
       chosenHost = loadBalancer.getLeastLoadedServer(failedHosts);
     }
-    throw firstException;
+    return null;
   }
 
   /**
